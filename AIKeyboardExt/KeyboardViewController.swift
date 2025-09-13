@@ -21,6 +21,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var symbolsKeyboardView: UIView!
     private var emojiCollectionView: UICollectionView!
     
+    private var suggestionsContainer: UIView!
+    private var featuresContainer: UIView!
+    
     private let emojis: [String] = [
         "😀","😃","😄","😁","😆","😅","😂","🤣","😊","🙂","😉","😍","😘","😗","😜","🤪","😎","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠"
     ]
@@ -130,49 +133,15 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             mainKeyboardView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
         
-        let mainStackView = UIStackView()
-        mainStackView.axis = .vertical
-        mainStackView.spacing = 10
-        mainStackView.distribution = .fillEqually
-        mainStackView.translatesAutoresizingMaskIntoConstraints = false
-        mainKeyboardView.addSubview(mainStackView)
-        
+        // Add alphabetic keyboard view (extracted to its own class)
+        let alphabeticView = AlphabeticKeyboardView(controller: self, keyboardRows: keyboardRows)
+        mainKeyboardView.addSubview(alphabeticView)
         NSLayoutConstraint.activate([
-            mainStackView.topAnchor.constraint(equalTo: mainKeyboardView.topAnchor, constant: 10),
-            mainStackView.leadingAnchor.constraint(equalTo: mainKeyboardView.leadingAnchor, constant: 4),
-            mainStackView.trailingAnchor.constraint(equalTo: mainKeyboardView.trailingAnchor, constant: -4),
-            mainStackView.bottomAnchor.constraint(equalTo: mainKeyboardView.safeAreaLayoutGuide.bottomAnchor, constant: -8)
+            alphabeticView.topAnchor.constraint(equalTo: mainKeyboardView.topAnchor),
+            alphabeticView.leadingAnchor.constraint(equalTo: mainKeyboardView.leadingAnchor),
+            alphabeticView.trailingAnchor.constraint(equalTo: mainKeyboardView.trailingAnchor),
+            alphabeticView.bottomAnchor.constraint(equalTo: mainKeyboardView.bottomAnchor)
         ])
-        
-        keyboardRows.enumerated().forEach { (rowIndex, row) in
-            let rowStackView = UIStackView()
-            rowStackView.axis = .horizontal
-            rowStackView.spacing = 6
-            rowStackView.distribution = .fillProportionally
-            
-            if rowIndex == 1 {
-                let container = UIView()
-                container.addSubview(rowStackView)
-                rowStackView.translatesAutoresizingMaskIntoConstraints = false
-                NSLayoutConstraint.activate([
-                    rowStackView.topAnchor.constraint(equalTo: container.topAnchor),
-                    rowStackView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-                    rowStackView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
-                    rowStackView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20)
-                ])
-                mainStackView.addArrangedSubview(container)
-            } else {
-                mainStackView.addArrangedSubview(rowStackView)
-            }
-            
-            row.forEach { key in
-                let button = createKeyButton(title: key, isSpecial: isSpecialKey(key))
-                rowStackView.addArrangedSubview(button)
-            }
-        }
-        
-        let bottomRowStackView = createBottomRow()
-        mainStackView.addArrangedSubview(bottomRowStackView)
         
         // Emoji and Numeric keyboards
         setupEmojiKeyboard()
@@ -226,6 +195,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         bottomRow.distribution = .fillProportionally
         
         let abcButton = createKeyButton(title: "ABC", isSpecial: true)
+        // Prevent inserting text when tapping ABC; only switch layout
+        abcButton.removeTarget(self, action: #selector(keyPressed(_:)), for: .touchUpInside)
         abcButton.addTarget(self, action: #selector(switchToAlphabeticKeyboard), for: .touchUpInside)
         let emojiButton = createKeyButton(title: "😊", isSpecial: true)
         emojiButton.addTarget(self, action: #selector(switchToEmojiKeyboard), for: .touchUpInside)
@@ -292,6 +263,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         bottomRow.distribution = .fillProportionally
         
         let abcButton = createKeyButton(title: "ABC", isSpecial: true)
+        // Prevent inserting text when tapping ABC; only switch layout
+        abcButton.removeTarget(self, action: #selector(keyPressed(_:)), for: .touchUpInside)
         abcButton.addTarget(self, action: #selector(switchToAlphabeticKeyboard), for: .touchUpInside)
         let emojiButton = createKeyButton(title: "😊", isSpecial: true)
         emojiButton.addTarget(self, action: #selector(switchToEmojiKeyboard), for: .touchUpInside)
@@ -330,7 +303,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         layout.minimumLineSpacing = 10
         layout.minimumInteritemSpacing = 10
         let collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collection.isPagingEnabled = true
+        collection.isPagingEnabled = false
         emojiCollectionView = collection
         collection.dataSource = self
         collection.delegate = self
@@ -341,14 +314,16 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         emojiKeyboardView.addSubview(collection)
         
         let abcButton = createKeyButton(title: "ABC", isSpecial: true)
+        // Prevent inserting text when tapping ABC; only switch layout
+        abcButton.removeTarget(self, action: #selector(keyPressed(_:)), for: .touchUpInside)
         abcButton.addTarget(self, action: #selector(switchToAlphabeticKeyboard), for: .touchUpInside)
         emojiKeyboardView.addSubview(abcButton)
         self.abcButton = abcButton
         
         NSLayoutConstraint.activate([
             collection.topAnchor.constraint(equalTo: emojiKeyboardView.topAnchor, constant: 10),
-            collection.leadingAnchor.constraint(equalTo: emojiKeyboardView.leadingAnchor, constant: 8),
-            collection.trailingAnchor.constraint(equalTo: emojiKeyboardView.trailingAnchor, constant: -8),
+            collection.leadingAnchor.constraint(equalTo: emojiKeyboardView.leadingAnchor),
+            collection.trailingAnchor.constraint(equalTo: emojiKeyboardView.trailingAnchor),
             
             abcButton.leadingAnchor.constraint(equalTo: emojiKeyboardView.leadingAnchor, constant: 8),
             abcButton.bottomAnchor.constraint(equalTo: emojiKeyboardView.safeAreaLayoutGuide.bottomAnchor, constant: -8),
@@ -357,6 +332,11 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             
             collection.bottomAnchor.constraint(equalTo: abcButton.topAnchor, constant: -10)
         ])
+    }
+    
+    @objc private func toggleFeatureViews() {
+        suggestionsContainer.isHidden.toggle()
+        featuresContainer.isHidden.toggle()
     }
     
     @objc private func switchToEmojiKeyboard() {
@@ -387,7 +367,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         symbolsKeyboardView.isHidden = false
     }
 
-    private func createBottomRow() -> UIStackView {
+    func createBottomRow() -> UIStackView {
         let bottomRow = UIStackView()
         bottomRow.axis = .horizontal
         bottomRow.spacing = 6
@@ -423,36 +403,112 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private func setupSuggestionBar() {
         suggestionBar = UIView()
         suggestionBar.translatesAutoresizingMaskIntoConstraints = false
-        suggestionBar.backgroundColor = .clear
         view.addSubview(suggestionBar)
-        
+
         NSLayoutConstraint.activate([
-            suggestionBar.topAnchor.constraint(equalTo: view.topAnchor, constant: 8),
+            suggestionBar.topAnchor.constraint(equalTo: view.topAnchor),
             suggestionBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             suggestionBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            suggestionBar.heightAnchor.constraint(equalToConstant: 40)
+            suggestionBar.heightAnchor.constraint(equalToConstant: 50)
         ])
-        
-        let stackView = UIStackView()
-        stackView.axis = .horizontal
-        stackView.distribution = .fillEqually
-        stackView.spacing = 1
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        suggestionBar.addSubview(stackView)
-        
-        NSLayoutConstraint.activate([
-            stackView.centerYAnchor.constraint(equalTo: suggestionBar.centerYAnchor),
-            stackView.centerXAnchor.constraint(equalTo: suggestionBar.centerXAnchor),
-            stackView.widthAnchor.constraint(equalTo: suggestionBar.widthAnchor, multiplier: 0.6)
-        ])
-        
+
+        // Suggestions Container
+        suggestionsContainer = UIView()
+        suggestionsContainer.translatesAutoresizingMaskIntoConstraints = false
+        suggestionBar.addSubview(suggestionsContainer)
+
+        let featuresButton = UIButton(type: .system)
+        featuresButton.setImage(UIImage(systemName: "ellipsis.circle"), for: .normal)
+        featuresButton.addTarget(self, action: #selector(toggleFeatureViews), for: .touchUpInside)
+        featuresButton.tintColor = keyTextColor
+        featuresButton.translatesAutoresizingMaskIntoConstraints = false
+        suggestionsContainer.addSubview(featuresButton)
+
+        let suggestionsStackView = UIStackView()
+        suggestionsStackView.axis = .horizontal
+        suggestionsStackView.distribution = .fillEqually
+        suggestionsStackView.spacing = 1
+        suggestionsStackView.translatesAutoresizingMaskIntoConstraints = false
+        suggestionsContainer.addSubview(suggestionsStackView)
+
         for suggestion in suggestions {
             let button = createSuggestionButton(title: suggestion)
-            stackView.addArrangedSubview(button)
+            suggestionsStackView.addArrangedSubview(button)
         }
+
+        NSLayoutConstraint.activate([
+            suggestionsContainer.leadingAnchor.constraint(equalTo: suggestionBar.leadingAnchor),
+            suggestionsContainer.trailingAnchor.constraint(equalTo: suggestionBar.trailingAnchor),
+            suggestionsContainer.topAnchor.constraint(equalTo: suggestionBar.topAnchor),
+            suggestionsContainer.bottomAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
+
+            featuresButton.leadingAnchor.constraint(equalTo: suggestionsContainer.leadingAnchor, constant: 16),
+            featuresButton.centerYAnchor.constraint(equalTo: suggestionsContainer.centerYAnchor),
+            featuresButton.widthAnchor.constraint(equalToConstant: 28),
+            featuresButton.heightAnchor.constraint(equalToConstant: 28),
+
+            suggestionsStackView.leadingAnchor.constraint(equalTo: featuresButton.trailingAnchor, constant: 16),
+            suggestionsStackView.trailingAnchor.constraint(equalTo: suggestionsContainer.trailingAnchor, constant: -16),
+            suggestionsStackView.centerYAnchor.constraint(equalTo: suggestionsContainer.centerYAnchor)
+        ])
+
+        // Features Container
+        featuresContainer = UIView()
+        featuresContainer.translatesAutoresizingMaskIntoConstraints = false
+        featuresContainer.isHidden = true
+        suggestionBar.addSubview(featuresContainer)
+
+        let featuresScrollView = UIScrollView()
+        featuresScrollView.showsHorizontalScrollIndicator = false
+        featuresScrollView.translatesAutoresizingMaskIntoConstraints = false
+        featuresContainer.addSubview(featuresScrollView)
+
+        let featuresStack = UIStackView()
+        featuresStack.axis = .horizontal
+        featuresStack.spacing = 8
+        featuresStack.translatesAutoresizingMaskIntoConstraints = false
+        featuresScrollView.addSubview(featuresStack)
+        featuresScrollView.contentInset = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
+
+        let featureTitles = ["Check Grammar", "Tone Changer", "Ask AI", "Translate", "Paraphrase", "Reply", "Continue Text", "Find Synonyms"]
+        for title in featureTitles {
+            featuresStack.addArrangedSubview(createFeatureButton(title: title))
+        }
+
+        let closeButton = UIButton(type: .system)
+        closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
+        closeButton.addTarget(self, action: #selector(toggleFeatureViews), for: .touchUpInside)
+        closeButton.tintColor = keyTextColor
+        closeButton.translatesAutoresizingMaskIntoConstraints = false
+        featuresContainer.addSubview(closeButton)
+
+        NSLayoutConstraint.activate([
+            featuresContainer.leadingAnchor.constraint(equalTo: suggestionBar.leadingAnchor),
+            featuresContainer.trailingAnchor.constraint(equalTo: suggestionBar.trailingAnchor),
+            featuresContainer.topAnchor.constraint(equalTo: suggestionBar.topAnchor, constant: 10),
+            featuresContainer.bottomAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
+
+            featuresScrollView.leadingAnchor.constraint(equalTo: featuresContainer.leadingAnchor, constant: 0),
+            featuresScrollView.topAnchor.constraint(equalTo: featuresContainer.topAnchor),
+            featuresScrollView.bottomAnchor.constraint(equalTo: featuresContainer.bottomAnchor),
+            // Ensure the scroll view has a trailing anchor relative to the close button
+            featuresScrollView.trailingAnchor.constraint(equalTo: closeButton.leadingAnchor, constant: -8),
+
+            featuresStack.leadingAnchor.constraint(equalTo: featuresScrollView.leadingAnchor),
+            featuresStack.trailingAnchor.constraint(equalTo: featuresScrollView.trailingAnchor),
+            featuresStack.topAnchor.constraint(equalTo: featuresScrollView.topAnchor),
+            featuresStack.bottomAnchor.constraint(equalTo: featuresScrollView.bottomAnchor),
+            featuresStack.heightAnchor.constraint(equalTo: featuresScrollView.heightAnchor),
+            
+            closeButton.leadingAnchor.constraint(equalTo: featuresScrollView.trailingAnchor, constant: 16),
+            closeButton.trailingAnchor.constraint(equalTo: featuresContainer.trailingAnchor, constant: -16),
+            closeButton.centerYAnchor.constraint(equalTo: featuresContainer.centerYAnchor),
+            closeButton.widthAnchor.constraint(equalToConstant: 24),
+            closeButton.heightAnchor.constraint(equalToConstant: 24)
+        ])
     }
     
-    private func createKeyButton(title: String, identifier: String? = nil, isSpecial: Bool = false) -> UIButton {
+    func createKeyButton(title: String, identifier: String? = nil, isSpecial: Bool = false) -> UIButton {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.accessibilityIdentifier = identifier ?? title
@@ -494,7 +550,18 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         return button
     }
     
-    private func isSpecialKey(_ key: String) -> Bool {
+    private func createFeatureButton(title: String) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 14)
+        button.layer.cornerRadius = 8
+        button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        button.backgroundColor = specialKeyBackgroundColor
+        button.setTitleColor(keyTextColor, for: .normal)
+        return button
+    }
+    
+    func isSpecialKey(_ key: String) -> Bool {
         return ["shift", "delete", "123", "😊", "return", "ABC", "#+="].contains(key)
     }
     
@@ -630,14 +697,13 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         }
         let itemsPerRow: CGFloat = 8
         let itemsPerColumn: CGFloat = 4
-        let horizontalPadding = collectionView.contentInset.left + collectionView.contentInset.right + 10
-        let verticalPadding = collectionView.contentInset.top + collectionView.contentInset.bottom
         
-        let availableWidth = collectionView.bounds.width - horizontalPadding
-        let availableHeight = collectionView.bounds.height - verticalPadding
-        
-        let width = (availableWidth / itemsPerRow) - (layout.minimumInteritemSpacing * (itemsPerRow - 1) / itemsPerRow)
-        let height = (availableHeight / itemsPerColumn) - (layout.minimumLineSpacing * (itemsPerColumn - 1) / itemsPerColumn)
+        let totalSpacing = (itemsPerRow - 1) * layout.minimumInteritemSpacing
+        let availableWidth = collectionView.bounds.width - totalSpacing
+        let width = availableWidth / itemsPerRow
+
+        let availableHeight = collectionView.bounds.height
+        let height = availableHeight / itemsPerColumn
 
         return CGSize(width: floor(width), height: floor(height))
     }
