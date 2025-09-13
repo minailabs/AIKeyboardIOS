@@ -14,6 +14,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var isCapsLockEnabled = false
     private var shiftButton: UIButton?
     private var abcButton: UIButton?
+    private var deleteTimer: Timer?
     
     private var mainKeyboardView: UIView!
     private var emojiKeyboardView: UIView!
@@ -396,17 +397,17 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         featuresButton.translatesAutoresizingMaskIntoConstraints = false
         suggestionsContainer.addSubview(featuresButton)
 
-        let suggestionsStackView = UIStackView()
-        suggestionsStackView.axis = .horizontal
-        suggestionsStackView.distribution = .fillEqually
-        suggestionsStackView.spacing = 1
-        suggestionsStackView.translatesAutoresizingMaskIntoConstraints = false
-        suggestionsContainer.addSubview(suggestionsStackView)
-
-        for suggestion in suggestions {
-            let button = createSuggestionButton(title: suggestion)
-            suggestionsStackView.addArrangedSubview(button)
-        }
+//        let suggestionsStackView = UIStackView()
+//        suggestionsStackView.axis = .horizontal
+//        suggestionsStackView.distribution = .fillEqually
+//        suggestionsStackView.spacing = 1
+//        suggestionsStackView.translatesAutoresizingMaskIntoConstraints = false
+//        suggestionsContainer.addSubview(suggestionsStackView)
+//
+//        for suggestion in suggestions {
+//            let button = createSuggestionButton(title: suggestion)
+//            suggestionsStackView.addArrangedSubview(button)
+//        }
 
         NSLayoutConstraint.activate([
             suggestionsContainer.leadingAnchor.constraint(equalTo: suggestionBar.leadingAnchor),
@@ -419,9 +420,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             featuresButton.widthAnchor.constraint(equalToConstant: 28),
             featuresButton.heightAnchor.constraint(equalToConstant: 28),
 
-            suggestionsStackView.leadingAnchor.constraint(equalTo: featuresButton.trailingAnchor, constant: 16),
-            suggestionsStackView.trailingAnchor.constraint(equalTo: suggestionsContainer.trailingAnchor, constant: -16),
-            suggestionsStackView.centerYAnchor.constraint(equalTo: suggestionsContainer.centerYAnchor)
+//            suggestionsStackView.leadingAnchor.constraint(equalTo: featuresButton.trailingAnchor, constant: 16),
+//            suggestionsStackView.trailingAnchor.constraint(equalTo: suggestionsContainer.trailingAnchor, constant: -16),
+//            suggestionsStackView.centerYAnchor.constraint(equalTo: suggestionsContainer.centerYAnchor)
         ])
 
         // Features Container
@@ -599,18 +600,18 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     
     @objc func keyPressed(_ sender: UIButton) {
         let proxy = textDocumentProxy
-
+    
+        // Single deleteBackward for selected text
         if let selectedText = proxy.selectedText, !selectedText.isEmpty {
-            for _ in 0..<selectedText.count {
-                proxy.deleteBackward()
-            }
+            proxy.deleteBackward()
         }
         
         guard let key = sender.accessibilityIdentifier else { return }
 
         switch key {
         case "delete":
-            proxy.deleteBackward()
+            // This is now handled by keyTouchDown and keyTouchUp to support long press
+            break
         case "shift":
             toggleShift()
         case "space":
@@ -642,16 +643,31 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     }
     
     @objc private func keyTouchDown(_ sender: UIButton) {
-        UIView.animate(withDuration: 0.1) {
-            sender.backgroundColor = self.keyBackgroundColor.withAlphaComponent(0.7)
-            sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        // sender.backgroundColor = self.keyBackgroundColor.withAlphaComponent(0.7)
+        // sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+
+        if sender.accessibilityIdentifier == "delete" {
+            textDocumentProxy.deleteBackward()
+            deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { [weak self] _ in
+                self?.startContinuousDelete()
+            }
         }
     }
     
     @objc private func keyTouchUp(_ sender: UIButton) {
-        UIView.animate(withDuration: 0.1) {
-            sender.backgroundColor = self.isSpecialKey(sender.accessibilityIdentifier ?? "") ? self.specialKeyBackgroundColor : self.keyBackgroundColor
-            sender.transform = CGAffineTransform.identity
+        // sender.backgroundColor = self.isSpecialKey(sender.accessibilityIdentifier ?? "") ? self.specialKeyBackgroundColor : self.keyBackgroundColor
+        // sender.transform = CGAffineTransform.identity
+
+        if sender.accessibilityIdentifier == "delete" {
+            deleteTimer?.invalidate()
+            deleteTimer = nil
+        }
+    }
+
+    private func startContinuousDelete() {
+        deleteTimer?.invalidate() // Stop the first timer
+        deleteTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.textDocumentProxy.deleteBackward()
         }
     }
     
@@ -682,6 +698,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
     private func updateKeyCaps() {
         let shouldUppercase = isShiftEnabled || isCapsLockEnabled
+
+        
         
         func updateButtonsRecursively(in view: UIView) {
             for subview in view.subviews {
@@ -695,7 +713,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             }
         }
         
-        updateButtonsRecursively(in: view)
+        if let mainView = mainKeyboardView {
+            updateButtonsRecursively(in: mainView)
+        }
+        // if !mainKeyboardView.isHidden {
+        //     updateMainKeyboardCaps(shouldUppercase)
+        // }
     }
     
     func getSelectedText() -> String? {

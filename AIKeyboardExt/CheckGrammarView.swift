@@ -27,6 +27,8 @@ final class CheckGrammarView: UIView {
         self.keyboardViewController = controller
         self.resultTextView = UITextView()
         self.applyButton = UIButton(type: .system)
+        self.applyButton.setTitleColor(.black, for: .normal)
+        self.applyButton.backgroundColor = .systemGreen
         self.loadingIndicator = UIActivityIndicatorView(style: .large)
         super.init(frame: .zero)
         setupView()
@@ -52,6 +54,8 @@ final class CheckGrammarView: UIView {
         applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
         applyButton.isHidden = true
         applyButton.translatesAutoresizingMaskIntoConstraints = false
+        applyButton.layer.cornerRadius = 8
+        applyButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
         addSubview(applyButton)
         
         loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
