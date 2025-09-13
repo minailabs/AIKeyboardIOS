@@ -19,10 +19,13 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var emojiKeyboardView: UIView!
     private var numericKeyboardView: UIView!
     private var symbolsKeyboardView: UIView!
+    private var featureContainerView: UIView!
     var emojiCollectionView: UICollectionView!
     
     private var suggestionsContainer: UIView!
     private var featuresContainer: UIView!
+    
+    private var featureButtonStates: [String: Bool] = [:]
     
     private let emojis: [String] = [
         "😀","😃","😄","😁","😆","😅","😂","🤣","😊","🙂","😉","😍","😘","😗","😜","🤪","😎","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠"
@@ -148,6 +151,22 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         setupEmojiKeyboard()
         setupNumericKeyboard()
         setupSymbolsKeyboard()
+        setupFeatureContainerView()
+    }
+    
+    private func setupFeatureContainerView() {
+        featureContainerView = UIView()
+        featureContainerView.translatesAutoresizingMaskIntoConstraints = false
+        featureContainerView.isHidden = true
+        featureContainerView.backgroundColor = .red
+        view.addSubview(featureContainerView)
+
+        NSLayoutConstraint.activate([
+            featureContainerView.topAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
+            featureContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            featureContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            featureContainerView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
     }
     
     private func setupSymbolsKeyboard() {
@@ -265,36 +284,59 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     }
     
     @objc private func toggleFeatureViews() {
-        suggestionsContainer.isHidden.toggle()
-        featuresContainer.isHidden.toggle()
+        let isSuggestionsHidden = suggestionsContainer.isHidden
+        suggestionsContainer.isHidden = !isSuggestionsHidden
+        featuresContainer.isHidden = isSuggestionsHidden
+        
+        if isSuggestionsHidden {
+            closeFeatureContainerView()
+            showKeyboardView(mainKeyboardView)
+        }
+    }
+
+    @objc private func closeFeatureContainerView() {
+        showKeyboardView(mainKeyboardView)
+        // Reset the state of all feature buttons to inactive
+        for key in featureButtonStates.keys {
+            featureButtonStates[key] = false
+        }
+        // Also update the appearance of all feature buttons in the UI
+        if let featuresScrollView = featuresContainer?.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView,
+        let featuresStack = featuresScrollView.subviews.first(where: { $0 is UIStackView }) as? UIStackView {
+            for case let button as UIButton in featuresStack.arrangedSubviews {
+                updateFeatureButtonAppearance(button: button, isActive: false)
+            }
+        }
+    }
+    
+    private func showKeyboardView(_ viewToShow: UIView) {
+        mainKeyboardView.isHidden = true
+        numericKeyboardView.isHidden = true
+        symbolsKeyboardView.isHidden = true
+        emojiKeyboardView.isHidden = true
+        featureContainerView.isHidden = true
+        
+        viewToShow.isHidden = false
     }
     
     @objc func switchToEmojiKeyboard() {
-        mainKeyboardView.isHidden = true
-        emojiKeyboardView.isHidden = false
-        numericKeyboardView.isHidden = true
-        symbolsKeyboardView.isHidden = true
+        showKeyboardView(emojiKeyboardView)
     }
     
     @objc func switchToAlphabeticKeyboard() {
-        emojiKeyboardView.isHidden = true
-        mainKeyboardView.isHidden = false
-        numericKeyboardView.isHidden = true
-        symbolsKeyboardView.isHidden = true
+        showKeyboardView(mainKeyboardView)
     }
     
     @objc private func switchToNumericKeyboard() {
-        mainKeyboardView.isHidden = true
-        emojiKeyboardView.isHidden = true
-        numericKeyboardView.isHidden = false
-        symbolsKeyboardView.isHidden = true
+        showKeyboardView(numericKeyboardView)
     }
     
     @objc private func switchToSymbolsKeyboard() {
-        mainKeyboardView.isHidden = true
-        emojiKeyboardView.isHidden = true
-        numericKeyboardView.isHidden = true
-        symbolsKeyboardView.isHidden = false
+        showKeyboardView(symbolsKeyboardView)
+    }
+
+    private func switchToFeatureView() {
+        showKeyboardView(featureContainerView)
     }
 
     func createBottomRow() -> UIStackView {
@@ -369,8 +411,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         NSLayoutConstraint.activate([
             suggestionsContainer.leadingAnchor.constraint(equalTo: suggestionBar.leadingAnchor),
             suggestionsContainer.trailingAnchor.constraint(equalTo: suggestionBar.trailingAnchor),
-            suggestionsContainer.topAnchor.constraint(equalTo: suggestionBar.topAnchor),
-            suggestionsContainer.bottomAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
+            suggestionsContainer.topAnchor.constraint(equalTo: suggestionBar.topAnchor, constant: 5),
+            suggestionsContainer.bottomAnchor.constraint(equalTo: suggestionBar.bottomAnchor, constant: 5),
 
             featuresButton.leadingAnchor.constraint(equalTo: suggestionsContainer.leadingAnchor, constant: 16),
             featuresButton.centerYAnchor.constraint(equalTo: suggestionsContainer.centerYAnchor),
@@ -488,7 +530,53 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
         button.backgroundColor = specialKeyBackgroundColor
         button.setTitleColor(keyTextColor, for: .normal)
+        
+        featureButtonStates[title] = false
+        button.addTarget(self, action: #selector(featureButtonTapped(_:)), for: .touchUpInside)
+        
         return button
+    }
+    
+    @objc private func featureButtonTapped(_ sender: UIButton) {
+        guard let title = sender.currentTitle else { return }
+        
+        // If the button is already active, do nothing
+        if featureButtonStates[title] == true {
+            return
+        }
+        
+        // Deactivate all buttons first
+        deactivateAllFeatureButtons()
+        
+        // Activate the tapped button
+        featureButtonStates[title] = true
+        updateFeatureButtonAppearance(button: sender, isActive: true)
+        switchToFeatureView()
+    }
+
+    private func deactivateAllFeatureButtons() {
+        for key in featureButtonStates.keys {
+            featureButtonStates[key] = false
+        }
+
+        guard let featuresScrollView = featuresContainer?.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView,
+              let featuresStack = featuresScrollView.subviews.first(where: { $0 is UIStackView }) as? UIStackView else {
+            return
+        }
+
+        for case let button as UIButton in featuresStack.arrangedSubviews {
+            updateFeatureButtonAppearance(button: button, isActive: false)
+        }
+    }
+
+    private func updateFeatureButtonAppearance(button: UIButton, isActive: Bool) {
+        if isActive {
+            button.backgroundColor = .systemGreen
+            button.setTitleColor(.white, for: .normal)
+        } else {
+            button.backgroundColor = keyBackgroundColor
+            button.setTitleColor(keyTextColor, for: .normal)
+        }
     }
     
     func isSpecialKey(_ key: String) -> Bool {
