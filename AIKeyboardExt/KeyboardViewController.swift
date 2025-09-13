@@ -21,6 +21,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var symbolsKeyboardView: UIView!
     private var featureContainerView: UIView!
     var emojiCollectionView: UICollectionView!
+    private var checkGrammarView: CheckGrammarView?
     
     private var suggestionsContainer: UIView!
     private var featuresContainer: UIView!
@@ -51,7 +52,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     
     private let suggestions = ["I", "The", "I'm"]
     
-    private var keyBackgroundColor: UIColor {
+    var keyBackgroundColor: UIColor {
         return UIColor { (traits) -> UIColor in
             return traits.userInterfaceStyle == .dark ?
                 UIColor(red: 0.25, green: 0.25, blue: 0.27, alpha: 1.0) :
@@ -59,7 +60,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         }
     }
     
-    private var specialKeyBackgroundColor: UIColor {
+    var specialKeyBackgroundColor: UIColor {
         return UIColor { (traits) -> UIColor in
             return traits.userInterfaceStyle == .dark ?
                 UIColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1.0) :
@@ -67,7 +68,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         }
     }
     
-    private var keyTextColor: UIColor {
+    var keyTextColor: UIColor {
         return UIColor { (traits) -> UIColor in
             return traits.userInterfaceStyle == .dark ? .white : .black
         }
@@ -121,6 +122,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         
         let keyboardHeight: CGFloat = 280
         let heightConstraint = NSLayoutConstraint(item: view!, attribute: .height, relatedBy: .equal, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: keyboardHeight)
+        heightConstraint.priority = .init(999)
         view.addConstraint(heightConstraint)
         
         setupSuggestionBar()
@@ -154,15 +156,19 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         setupFeatureContainerView()
     }
     
+    private func setupFeatureSpecificViews() {
+        // Removed pre-emptive setup
+    }
+
     private func setupFeatureContainerView() {
         featureContainerView = UIView()
         featureContainerView.translatesAutoresizingMaskIntoConstraints = false
         featureContainerView.isHidden = true
-        featureContainerView.backgroundColor = .red
+//        featureContainerView.backgroundColor = .red
         view.addSubview(featureContainerView)
 
         NSLayoutConstraint.activate([
-            featureContainerView.topAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
+            featureContainerView.topAnchor.constraint(equalTo: suggestionBar.bottomAnchor, constant: 5),
             featureContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             featureContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             featureContainerView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -296,17 +302,11 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
     @objc private func closeFeatureContainerView() {
         showKeyboardView(mainKeyboardView)
-        // Reset the state of all feature buttons to inactive
-        for key in featureButtonStates.keys {
-            featureButtonStates[key] = false
-        }
-        // Also update the appearance of all feature buttons in the UI
-        if let featuresScrollView = featuresContainer?.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView,
-        let featuresStack = featuresScrollView.subviews.first(where: { $0 is UIStackView }) as? UIStackView {
-            for case let button as UIButton in featuresStack.arrangedSubviews {
-                updateFeatureButtonAppearance(button: button, isActive: false)
-            }
-        }
+        deactivateAllFeatureButtons()
+        
+        
+        checkGrammarView?.removeFromSuperview()
+        checkGrammarView = nil
     }
     
     private func showKeyboardView(_ viewToShow: UIView) {
@@ -457,12 +457,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         NSLayoutConstraint.activate([
             featuresContainer.leadingAnchor.constraint(equalTo: suggestionBar.leadingAnchor),
             featuresContainer.trailingAnchor.constraint(equalTo: suggestionBar.trailingAnchor),
-            featuresContainer.topAnchor.constraint(equalTo: suggestionBar.topAnchor, constant: 10),
+            featuresContainer.topAnchor.constraint(equalTo: suggestionBar.topAnchor, constant: 5),
             featuresContainer.bottomAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
 
             featuresScrollView.leadingAnchor.constraint(equalTo: featuresContainer.leadingAnchor, constant: 0),
-            featuresScrollView.topAnchor.constraint(equalTo: featuresContainer.topAnchor),
-            featuresScrollView.bottomAnchor.constraint(equalTo: featuresContainer.bottomAnchor),
+            featuresScrollView.topAnchor.constraint(equalTo: featuresContainer.topAnchor, constant: 5),
+            featuresScrollView.bottomAnchor.constraint(equalTo: featuresContainer.bottomAnchor, constant: -5),
             // Ensure the scroll view has a trailing anchor relative to the close button
             featuresScrollView.trailingAnchor.constraint(equalTo: closeButton.leadingAnchor, constant: -8),
 
@@ -472,7 +472,6 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             featuresStack.bottomAnchor.constraint(equalTo: featuresScrollView.bottomAnchor),
             featuresStack.heightAnchor.constraint(equalTo: featuresScrollView.heightAnchor),
             
-            closeButton.leadingAnchor.constraint(equalTo: featuresScrollView.trailingAnchor, constant: 16),
             closeButton.trailingAnchor.constraint(equalTo: featuresContainer.trailingAnchor, constant: -16),
             closeButton.centerYAnchor.constraint(equalTo: featuresContainer.centerYAnchor),
             closeButton.widthAnchor.constraint(equalToConstant: 24),
@@ -552,6 +551,21 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         featureButtonStates[title] = true
         updateFeatureButtonAppearance(button: sender, isActive: true)
         switchToFeatureView()
+
+        if title == "Check Grammar" {
+            if checkGrammarView == nil {
+                checkGrammarView = CheckGrammarView(controller: self)
+                featureContainerView.addSubview(checkGrammarView!)
+                NSLayoutConstraint.activate([
+                    checkGrammarView!.topAnchor.constraint(equalTo: featureContainerView.topAnchor),
+                    checkGrammarView!.leadingAnchor.constraint(equalTo: featureContainerView.leadingAnchor),
+                    checkGrammarView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
+                    checkGrammarView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
+                ])
+            }
+            checkGrammarView?.isHidden = false
+            checkGrammarView?.processSelectedText(getSelectedText())
+        }
     }
 
     private func deactivateAllFeatureButtons() {
@@ -585,6 +599,13 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     
     @objc func keyPressed(_ sender: UIButton) {
         let proxy = textDocumentProxy
+
+        if let selectedText = proxy.selectedText, !selectedText.isEmpty {
+            for _ in 0..<selectedText.count {
+                proxy.deleteBackward()
+            }
+        }
+        
         guard let key = sender.accessibilityIdentifier else { return }
 
         switch key {
@@ -675,6 +696,18 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         }
         
         updateButtonsRecursively(in: view)
+    }
+    
+    func getSelectedText() -> String? {
+        return textDocumentProxy.selectedText
+    }
+    
+    func replaceSelectedText(with text: String) {
+        guard let selectedText = textDocumentProxy.selectedText, !selectedText.isEmpty else { return }
+        for _ in 0..<selectedText.count {
+            textDocumentProxy.deleteBackward()
+        }
+        textDocumentProxy.insertText(text)
     }
     
     override func textWillChange(_ textInput: UITextInput?) {}

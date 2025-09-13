@@ -12,7 +12,20 @@
 		<key>AIKeyboardExt.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
-			<integer>1</integer>
+			<integer>0</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>84A8CAE62E6F1F7000F08979</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>84A8CAF82E6F1F9500F08979</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>
