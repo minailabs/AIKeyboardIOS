@@ -19,7 +19,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var emojiKeyboardView: UIView!
     private var numericKeyboardView: UIView!
     private var symbolsKeyboardView: UIView!
-    private var emojiCollectionView: UICollectionView!
+    var emojiCollectionView: UICollectionView!
     
     private var suggestionsContainer: UIView!
     private var featuresContainer: UIView!
@@ -85,6 +85,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     
     override func viewWillLayoutSubviews() {
         super.viewWillLayoutSubviews()
+        emojiCollectionView?.collectionViewLayout.invalidateLayout()
     }
     
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
@@ -222,67 +223,22 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         numericKeyboardView.translatesAutoresizingMaskIntoConstraints = false
         numericKeyboardView.isHidden = true
         view.addSubview(numericKeyboardView)
-        
+
         NSLayoutConstraint.activate([
             numericKeyboardView.topAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
             numericKeyboardView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             numericKeyboardView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             numericKeyboardView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
-        
-        let numericStackView = UIStackView()
-        numericStackView.axis = .vertical
-        numericStackView.spacing = 10
-        numericStackView.distribution = .fillEqually
-        numericStackView.translatesAutoresizingMaskIntoConstraints = false
-        numericKeyboardView.addSubview(numericStackView)
-        
+
+        let numericView = NumericKeyboardView(controller: self, rows: numericKeyboardRows)
+        numericKeyboardView.addSubview(numericView)
         NSLayoutConstraint.activate([
-            numericStackView.topAnchor.constraint(equalTo: numericKeyboardView.topAnchor, constant: 10),
-            numericStackView.leadingAnchor.constraint(equalTo: numericKeyboardView.leadingAnchor, constant: 4),
-            numericStackView.trailingAnchor.constraint(equalTo: numericKeyboardView.trailingAnchor, constant: -4),
-            numericStackView.bottomAnchor.constraint(equalTo: numericKeyboardView.safeAreaLayoutGuide.bottomAnchor, constant: -8)
+            numericView.topAnchor.constraint(equalTo: numericKeyboardView.topAnchor),
+            numericView.leadingAnchor.constraint(equalTo: numericKeyboardView.leadingAnchor),
+            numericView.trailingAnchor.constraint(equalTo: numericKeyboardView.trailingAnchor),
+            numericView.bottomAnchor.constraint(equalTo: numericKeyboardView.bottomAnchor)
         ])
-        
-        numericKeyboardRows.forEach { row in
-            let rowStackView = UIStackView()
-            rowStackView.axis = .horizontal
-            rowStackView.spacing = 6
-            rowStackView.distribution = .fillProportionally
-            numericStackView.addArrangedSubview(rowStackView)
-            
-            row.forEach { key in
-                let button = createKeyButton(title: key, isSpecial: isSpecialKey(key))
-                rowStackView.addArrangedSubview(button)
-            }
-        }
-        
-        let bottomRow = UIStackView()
-        bottomRow.axis = .horizontal
-        bottomRow.spacing = 6
-        bottomRow.distribution = .fillProportionally
-        
-        let abcButton = createKeyButton(title: "ABC", isSpecial: true)
-        // Prevent inserting text when tapping ABC; only switch layout
-        abcButton.removeTarget(self, action: #selector(keyPressed(_:)), for: .touchUpInside)
-        abcButton.addTarget(self, action: #selector(switchToAlphabeticKeyboard), for: .touchUpInside)
-        let emojiButton = createKeyButton(title: "😊", isSpecial: true)
-        emojiButton.addTarget(self, action: #selector(switchToEmojiKeyboard), for: .touchUpInside)
-        let spaceButton = createKeyButton(title: "", identifier: "space", isSpecial: false)
-        let returnButton = createKeyButton(title: "return", isSpecial: true)
-        
-        bottomRow.addArrangedSubview(abcButton)
-        bottomRow.addArrangedSubview(emojiButton)
-        bottomRow.addArrangedSubview(spaceButton)
-        bottomRow.addArrangedSubview(returnButton)
-        
-        NSLayoutConstraint.activate([
-            abcButton.widthAnchor.constraint(equalTo: returnButton.widthAnchor, multiplier: 1.0),
-            emojiButton.widthAnchor.constraint(equalTo: abcButton.widthAnchor, multiplier: 0.8),
-            spaceButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 100)
-        ])
-        
-        numericStackView.addArrangedSubview(bottomRow)
     }
     
     private func setupEmojiKeyboard() {
@@ -290,47 +246,21 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         emojiKeyboardView.translatesAutoresizingMaskIntoConstraints = false
         emojiKeyboardView.isHidden = true
         view.addSubview(emojiKeyboardView)
-        
+
         NSLayoutConstraint.activate([
             emojiKeyboardView.topAnchor.constraint(equalTo: suggestionBar.bottomAnchor),
             emojiKeyboardView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             emojiKeyboardView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             emojiKeyboardView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
-        
-        let layout = UICollectionViewFlowLayout()
-        layout.scrollDirection = .horizontal
-        layout.minimumLineSpacing = 10
-        layout.minimumInteritemSpacing = 10
-        let collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
-        collection.isPagingEnabled = false
-        emojiCollectionView = collection
-        collection.dataSource = self
-        collection.delegate = self
-        collection.register(UICollectionViewCell.self, forCellWithReuseIdentifier: "cell")
-        collection.backgroundColor = .clear
-        collection.translatesAutoresizingMaskIntoConstraints = false
-        collection.showsHorizontalScrollIndicator = false
-        emojiKeyboardView.addSubview(collection)
-        
-        let abcButton = createKeyButton(title: "ABC", isSpecial: true)
-        // Prevent inserting text when tapping ABC; only switch layout
-        abcButton.removeTarget(self, action: #selector(keyPressed(_:)), for: .touchUpInside)
-        abcButton.addTarget(self, action: #selector(switchToAlphabeticKeyboard), for: .touchUpInside)
-        emojiKeyboardView.addSubview(abcButton)
-        self.abcButton = abcButton
-        
+
+        let emojiView = EmojiKeyboardView(controller: self)
+        emojiKeyboardView.addSubview(emojiView)
         NSLayoutConstraint.activate([
-            collection.topAnchor.constraint(equalTo: emojiKeyboardView.topAnchor, constant: 10),
-            collection.leadingAnchor.constraint(equalTo: emojiKeyboardView.leadingAnchor),
-            collection.trailingAnchor.constraint(equalTo: emojiKeyboardView.trailingAnchor),
-            
-            abcButton.leadingAnchor.constraint(equalTo: emojiKeyboardView.leadingAnchor, constant: 8),
-            abcButton.bottomAnchor.constraint(equalTo: emojiKeyboardView.safeAreaLayoutGuide.bottomAnchor, constant: -8),
-            abcButton.widthAnchor.constraint(equalToConstant: 80),
-            abcButton.heightAnchor.constraint(equalToConstant: 44),
-            
-            collection.bottomAnchor.constraint(equalTo: abcButton.topAnchor, constant: -10)
+            emojiView.topAnchor.constraint(equalTo: emojiKeyboardView.topAnchor),
+            emojiView.leadingAnchor.constraint(equalTo: emojiKeyboardView.leadingAnchor),
+            emojiView.trailingAnchor.constraint(equalTo: emojiKeyboardView.trailingAnchor),
+            emojiView.bottomAnchor.constraint(equalTo: emojiKeyboardView.bottomAnchor)
         ])
     }
     
@@ -339,14 +269,14 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         featuresContainer.isHidden.toggle()
     }
     
-    @objc private func switchToEmojiKeyboard() {
+    @objc func switchToEmojiKeyboard() {
         mainKeyboardView.isHidden = true
         emojiKeyboardView.isHidden = false
         numericKeyboardView.isHidden = true
         symbolsKeyboardView.isHidden = true
     }
     
-    @objc private func switchToAlphabeticKeyboard() {
+    @objc func switchToAlphabeticKeyboard() {
         emojiKeyboardView.isHidden = true
         mainKeyboardView.isHidden = false
         numericKeyboardView.isHidden = true
@@ -565,7 +495,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         return ["shift", "delete", "123", "😊", "return", "ABC", "#+="].contains(key)
     }
     
-    @objc private func keyPressed(_ sender: UIButton) {
+    @objc func keyPressed(_ sender: UIButton) {
         let proxy = textDocumentProxy
         guard let key = sender.accessibilityIdentifier else { return }
 
@@ -698,11 +628,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         let itemsPerRow: CGFloat = 8
         let itemsPerColumn: CGFloat = 4
         
-        let totalSpacing = (itemsPerRow - 1) * layout.minimumInteritemSpacing
-        let availableWidth = collectionView.bounds.width - totalSpacing
+        let totalHorizontalSpacing = (itemsPerRow - 1) * layout.minimumInteritemSpacing
+        let availableWidth = collectionView.bounds.width - totalHorizontalSpacing
         let width = availableWidth / itemsPerRow
 
-        let availableHeight = collectionView.bounds.height
+        let totalVerticalSpacing = (itemsPerColumn - 1) * layout.minimumLineSpacing
+        let availableHeight = collectionView.bounds.height - totalVerticalSpacing
         let height = availableHeight / itemsPerColumn
 
         return CGSize(width: floor(width), height: floor(height))
