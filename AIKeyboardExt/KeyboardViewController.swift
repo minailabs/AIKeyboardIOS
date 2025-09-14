@@ -727,9 +727,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     
     func replaceSelectedText(with text: String) {
         guard let selectedText = textDocumentProxy.selectedText, !selectedText.isEmpty else { return }
-        for _ in 0..<selectedText.count {
-            textDocumentProxy.deleteBackward()
-        }
+        textDocumentProxy.deleteBackward()
         textDocumentProxy.insertText(text)
     }
     

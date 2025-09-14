@@ -96,10 +96,16 @@ final class CheckGrammarView: UIView {
             return
         }
         
+        if processedText != nil {
+            if processedText!.isEmpty == false {
+                return
+            }
+        }
+        
         if text == processedText {
             return
         }
-
+        
         processedText = text
 
         resultTextView.isHidden = true
