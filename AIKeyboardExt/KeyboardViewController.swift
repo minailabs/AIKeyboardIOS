@@ -24,6 +24,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     var emojiCollectionView: UICollectionView!
     private var checkGrammarView: CheckGrammarView?
     
+    private var fullTextForCorrection: String?
+    private var cursorPositionForCorrection: Int?
+    
     private var suggestionsContainer: UIView!
     private var featuresContainer: UIView!
     
@@ -305,9 +308,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         showKeyboardView(mainKeyboardView)
         deactivateAllFeatureButtons()
         
-        
         checkGrammarView?.removeFromSuperview()
         checkGrammarView = nil
+        fullTextForCorrection = nil
+        cursorPositionForCorrection = nil
+
+        textDocumentProxy.unmarkText()
     }
     
     private func showKeyboardView(_ viewToShow: UIView) {
@@ -563,9 +569,13 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                     checkGrammarView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
                     checkGrammarView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
                 ])
+                Task { [weak self] in
+                    await self?.reloadGrammarCheck()
+                }
             }
             checkGrammarView?.isHidden = false
-            checkGrammarView?.processSelectedText(getSelectedText())
+        }else {
+            checkGrammarView?.isHidden = true
         }
     }
 
@@ -582,6 +592,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         for case let button as UIButton in featuresStack.arrangedSubviews {
             updateFeatureButtonAppearance(button: button, isActive: false)
         }
+        
+        
     }
 
     private func updateFeatureButtonAppearance(button: UIButton, isActive: Bool) {
@@ -720,15 +732,155 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         //     updateMainKeyboardCaps(shouldUppercase)
         // }
     }
+
+    @MainActor
+    func collectFullText() async -> String {
+        // Step 1: collect and move to beginning
+        let leftPart = await moveLeftUntilStart()
+        print("Left part = \(leftPart)")
+        
+        textDocumentProxy.adjustTextPosition(byCharacterOffset: leftPart.count)
+        
+//        // Step 2: collect and move to end
+        let rightPart = await moveRightUntilEnd()
+        print("Right part = \(rightPart)")
+//        
+        let fullText = leftPart + rightPart
+        print("Full collected text = \(fullText)")
+//        textDocumentProxy.adjustTextPosition(byCharacterOffset: -leftPart.count)
+//        textDocumentProxy.setMarkedText(fullText, selectedRange: NSRange(location: 0, length: leftPart.count))
+        
+        textDocumentProxy.adjustTextPosition(byCharacterOffset: -rightPart.count)
+        
+        // Delete left part
+        for _ in 0..<leftPart.count {
+            textDocumentProxy.deleteBackward()
+        }
+        textDocumentProxy.setMarkedText(fullText, selectedRange: NSRange(location: 0, length: leftPart.count ))
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        textDocumentProxy.unmarkText()
+        return fullText
+    }
+
+    @MainActor
+    func markLeftPartForReplacement() async -> String? {
+        let leftPart = await moveLeftUntilStart()
+        let leftCount = leftPart.count
+        
+        // Restore cursor
+        textDocumentProxy.adjustTextPosition(byCharacterOffset: leftCount)
+        
+//         // Delete left part
+        for _ in 0..<leftCount {
+//            textDocumentProxy.adjustTextPosition(byCharacterOffset: -1)
+            textDocumentProxy.deleteBackward()
+        }
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        // Mark placeholder so typing replaces it
+        textDocumentProxy.setMarkedText(leftPart, selectedRange: NSRange(location: 0, length: leftCount))
+        return leftPart
+    }
+
+    @MainActor
+    private func moveLeftUntilStart() async -> String {
+        var collected = ""
+
+        while let before = textDocumentProxy.documentContextBeforeInput, !before.isEmpty {
+            let step = before.count
+            let slice = String(before.suffix(step))
+            collected = slice + collected
+
+            textDocumentProxy.adjustTextPosition(byCharacterOffset: -step)
+            try? await Task.sleep(nanoseconds: 80_000_000)
+
+            if (textDocumentProxy.documentContextBeforeInput ?? "").isEmpty {
+                break
+            }
+        }
+
+        return collected
+    }
+
+    @MainActor
+    private func moveRightUntilEnd() async -> String {
+        var collected = ""
+
+        while let after = textDocumentProxy.documentContextAfterInput, !after.isEmpty {
+            let step = after.count
+            let slice = String(after.prefix(step))
+            collected += slice
+
+            textDocumentProxy.adjustTextPosition(byCharacterOffset: step)
+            try? await Task.sleep(nanoseconds: 80_000_000)
+
+            if (textDocumentProxy.documentContextAfterInput ?? "").isEmpty {
+                break
+            }
+        }
+
+        return collected
+    }
+    
     
     func getSelectedText() -> String? {
         return textDocumentProxy.selectedText
     }
     
-    func replaceSelectedText(with text: String) {
-        guard let selectedText = textDocumentProxy.selectedText, !selectedText.isEmpty else { return }
-        textDocumentProxy.deleteBackward()
-        textDocumentProxy.insertText(text)
+    func applyCorrection(newText: String, isSelection: Bool) {
+        if isSelection {
+            guard let selectedText = textDocumentProxy.selectedText, !selectedText.isEmpty else { return }
+            for _ in 0..<selectedText.count {
+                textDocumentProxy.deleteBackward()
+            }
+            textDocumentProxy.insertText(newText)
+        } else {
+//            guard let originalFullText = fullTextForCorrection, let originalCursorPosition = cursorPositionForCorrection else { return }
+//
+//            let originalIndex = originalFullText.index(originalFullText.startIndex, offsetBy: originalCursorPosition)
+//            let textAfterCursor = originalFullText[originalIndex...]
+//            let finalFullText = newText + textAfterCursor
+//
+//            moveToEnd()
+//            if let currentText = textDocumentProxy.documentContextBeforeInput {
+//                for _ in 0..<currentText.count {
+//                    textDocumentProxy.deleteBackward()
+//                }
+//            }
+//
+//            textDocumentProxy.insertText(String(finalFullText))
+//
+//            let newCursorPosition = newText.count
+//            let charactersToMoveBack = finalFullText.count - newCursorPosition
+//            if charactersToMoveBack > 0 {
+//                for _ in 0..<charactersToMoveBack {
+//                    textDocumentProxy.adjustTextPosition(byCharacterOffset: -1)
+//                }
+//            }
+        }
+    }
+
+    // Allow the view to request a fresh grammar check using current context
+    @MainActor
+    func reloadGrammarCheck() async {
+        var textToProcess: String?
+        var isSelection = false
+
+        if let selectedText = getSelectedText(), !selectedText.isEmpty {
+            textToProcess = selectedText
+            isSelection = true
+            textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
+        } else {
+            // Since markLeftPartForReplacement now returns the marked text, we can use that directly
+            if let markedText = await markLeftPartForReplacement() {
+                textToProcess = markedText
+                isSelection = true // After marking, it becomes a selection
+            }
+        }
+
+        if let text = textToProcess, !text.isEmpty {
+            await checkGrammarView?.processText(text, isSelection: isSelection)
+            textDocumentProxy.unmarkText()
+        }
     }
     
     override func textWillChange(_ textInput: UITextInput?) {}
