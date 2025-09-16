@@ -4,13 +4,13 @@ final class CheckGrammarView: UIView {
     
     private weak var keyboardViewController: KeyboardViewController?
     
+    private let resultTitleLabel: UILabel
     private let resultTextView: UITextView
     private let applyButton: UIButton
     private let reloadButton: UIButton
     private let loadingIndicator: UIActivityIndicatorView
     private var correctedText: String?
     private var processedText: String?
-    private var isTextFromSelection: Bool = false
 
     // MARK: - Dynamic Colors
     private let viewBackgroundColor: UIColor = {
@@ -27,6 +27,7 @@ final class CheckGrammarView: UIView {
 
     init(controller: KeyboardViewController) {
         self.keyboardViewController = controller
+        self.resultTitleLabel = UILabel()
         self.resultTextView = UITextView()
         self.applyButton = UIButton(type: .system)
         self.reloadButton = UIButton(type: .system)
@@ -45,10 +46,15 @@ final class CheckGrammarView: UIView {
         translatesAutoresizingMaskIntoConstraints = false
         updateColors()
 
-        resultTextView.text = "Check Grammar View"
+        resultTitleLabel.text = "Result"
+        resultTitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        resultTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(resultTitleLabel)
+
+        resultTextView.text = ""
         resultTextView.textAlignment = .left
         resultTextView.isEditable = false
-        resultTextView.font = UIFont.systemFont(ofSize: 16)
+        resultTextView.font = UIFont.systemFont(ofSize: 14)
         resultTextView.backgroundColor = .clear
         resultTextView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(resultTextView)
@@ -72,8 +78,12 @@ final class CheckGrammarView: UIView {
         addSubview(loadingIndicator)
 
         NSLayoutConstraint.activate([
-            resultTextView.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-            resultTextView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            resultTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            resultTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+            resultTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+            
+            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: -5),
+            resultTextView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
             resultTextView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             
             applyButton.topAnchor.constraint(equalTo: resultTextView.bottomAnchor, constant: 10),
@@ -99,6 +109,7 @@ final class CheckGrammarView: UIView {
 
     private func updateColors() {
         backgroundColor = viewBackgroundColor
+        resultTitleLabel.textColor = textColor
         resultTextView.textColor = textColor
         applyButton.tintColor = keyboardViewController?.specialKeyBackgroundColor
         reloadButton.tintColor = textColor
@@ -106,11 +117,10 @@ final class CheckGrammarView: UIView {
     }
     
     @MainActor
-    func processText(_ text: String?, isSelection: Bool) async {
-        self.isTextFromSelection = isSelection
-
+    func processText(_ text: String?) async {
         guard let text = text, !text.isEmpty else {
-            resultTextView.text = "No text to check."
+            resultTitleLabel.isHidden = true
+            resultTextView.text = "To check your grammar, select some text or simply place your cursor at the end of the passage you want to review."
             return
         }
         
@@ -124,20 +134,22 @@ final class CheckGrammarView: UIView {
         loadingIndicator.startAnimating()
         applyButton.isHidden = true
         reloadButton.isHidden = true
+        resultTitleLabel.isHidden = true
         
         let result = await APIService.shared.checkGrammar(text: text)
         
         loadingIndicator.stopAnimating()
         resultTextView.isHidden = false
+        resultTitleLabel.isHidden = false
         
         switch result {
         case .success(let response):
             self.correctedText = response.output
-            self.resultTextView.text = "Result:\n\(response.output)"
+            self.resultTextView.text = response.output
             self.applyButton.isHidden = false
             self.reloadButton.isHidden = false
         case .failure(let error):
-            self.resultTextView.text = "Error:\n\(error.localizedDescription)"
+            self.resultTextView.text = error.localizedDescription
             self.applyButton.isHidden = true
             self.reloadButton.isHidden = false
         }
@@ -145,7 +157,7 @@ final class CheckGrammarView: UIView {
     
     @objc private func applyTapped() {
         guard let correctedText = correctedText else { return }
-        keyboardViewController?.applyCorrection(newText: correctedText, isSelection: isTextFromSelection)
+        keyboardViewController?.applyCorrection(newText: correctedText)
     }
 
     @objc private func reloadTapped() {

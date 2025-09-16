@@ -24,7 +24,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     var emojiCollectionView: UICollectionView!
     private var checkGrammarView: CheckGrammarView?
     
-    private var fullTextForCorrection: String?
+    private var originalTextForCorrection: String?
     private var cursorPositionForCorrection: Int?
     
     private var suggestionsContainer: UIView!
@@ -310,7 +310,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         
         checkGrammarView?.removeFromSuperview()
         checkGrammarView = nil
-        fullTextForCorrection = nil
+        originalTextForCorrection = nil
         cursorPositionForCorrection = nil
 
         textDocumentProxy.unmarkText()
@@ -826,37 +826,26 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         return textDocumentProxy.selectedText
     }
     
-    func applyCorrection(newText: String, isSelection: Bool) {
-        if isSelection {
-            guard let selectedText = textDocumentProxy.selectedText, !selectedText.isEmpty else { return }
-            for _ in 0..<selectedText.count {
-                textDocumentProxy.deleteBackward()
-            }
-            textDocumentProxy.insertText(newText)
-        } else {
-//            guard let originalFullText = fullTextForCorrection, let originalCursorPosition = cursorPositionForCorrection else { return }
-//
-//            let originalIndex = originalFullText.index(originalFullText.startIndex, offsetBy: originalCursorPosition)
-//            let textAfterCursor = originalFullText[originalIndex...]
-//            let finalFullText = newText + textAfterCursor
-//
-//            moveToEnd()
-//            if let currentText = textDocumentProxy.documentContextBeforeInput {
-//                for _ in 0..<currentText.count {
-//                    textDocumentProxy.deleteBackward()
-//                }
-//            }
-//
-//            textDocumentProxy.insertText(String(finalFullText))
-//
-//            let newCursorPosition = newText.count
-//            let charactersToMoveBack = finalFullText.count - newCursorPosition
-//            if charactersToMoveBack > 0 {
-//                for _ in 0..<charactersToMoveBack {
-//                    textDocumentProxy.adjustTextPosition(byCharacterOffset: -1)
-//                }
-//            }
+    func applyCorrection(newText: String) {
+        // First, verify that the context hasn't changed.
+        // The text that is currently marked/selected should be the same as the text we processed.
+        guard let originalText = originalTextForCorrection,
+              textDocumentProxy.selectedText == originalText
+        
+        else {
+            print(originalTextForCorrection)
+            print(textDocumentProxy.selectedText)
+            // If the context has changed, do nothing to avoid applying the correction in the wrong place.
+            textDocumentProxy.unmarkText()
+            self.originalTextForCorrection = nil
+            return
         }
+        
+        // Context is valid, so replace the marked text with the correction.
+        textDocumentProxy.insertText(newText)
+        
+        // Clean up
+        self.originalTextForCorrection = nil
     }
 
     // Allow the view to request a fresh grammar check using current context
@@ -878,8 +867,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         }
 
         if let text = textToProcess, !text.isEmpty {
-            await checkGrammarView?.processText(text, isSelection: isSelection)
-            textDocumentProxy.unmarkText()
+            self.originalTextForCorrection = text // Store the text that is being processed
+            await checkGrammarView?.processText(text)
+            // The text remains marked until it's either applied or the view is closed.
         }
     }
     
