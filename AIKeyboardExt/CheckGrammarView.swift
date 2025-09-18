@@ -49,6 +49,7 @@ final class CheckGrammarView: UIView {
         resultTitleLabel.text = "Result"
         resultTitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         resultTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        resultTitleLabel.isHidden = true
         addSubview(resultTitleLabel)
 
         resultTextView.text = ""

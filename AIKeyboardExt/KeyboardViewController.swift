@@ -99,6 +99,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         updateKeyboardAppearance()
+        updateSuggestionBarAppearance()
     }
 
     private func updateKeyboardAppearance() {
@@ -117,10 +118,37 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             }
         }
         
-        updateButtons(in: view)
+        updateButtons(in: mainKeyboardView)
+        updateButtons(in: numericKeyboardView)
+        updateButtons(in: symbolsKeyboardView)
         updateShiftButtonAppearance()
     }
 
+    private func updateSuggestionBarAppearance() {
+        guard suggestionBar != nil else { return }
+        
+        // Update feature buttons in the scroll view
+        if let featuresScrollView = featuresContainer?.subviews.first(where: { $0 is UIScrollView }) as? UIScrollView,
+           let featuresStack = featuresScrollView.subviews.first(where: { $0 is UIStackView }) as? UIStackView {
+            for case let button as UIButton in featuresStack.arrangedSubviews {
+                // Respect the active (green) state
+                let isActive = featureButtonStates[button.currentTitle ?? ""] ?? false
+                if !isActive {
+                    button.backgroundColor = specialKeyBackgroundColor
+                    button.setTitleColor(keyTextColor, for: .normal)
+                }
+            }
+        }
+        
+        // Update the close button
+        if let closeButton = featuresContainer.subviews.first(where: { $0 is UIButton }) as? UIButton {
+            closeButton.backgroundColor = specialKeyBackgroundColor
+            closeButton.tintColor = keyTextColor
+        }
+        
+        // The main features button is handled at setup and doesn't need to change with theme
+    }
+    
     private func setupKeyboard() {
         view.backgroundColor = keyboardBackgroundColor
         
@@ -397,9 +425,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         suggestionBar.addSubview(suggestionsContainer)
 
         let featuresButton = UIButton(type: .system)
-        featuresButton.setImage(UIImage(systemName: "ellipsis.circle"), for: .normal)
+        featuresButton.setTitle("✨", for: .normal)
+        featuresButton.titleLabel?.font = UIFont.systemFont(ofSize: 24)
         featuresButton.addTarget(self, action: #selector(toggleFeatureViews), for: .touchUpInside)
-        featuresButton.tintColor = keyTextColor
+        featuresButton.tintColor = .white
+        featuresButton.backgroundColor = .white
+        featuresButton.layer.cornerRadius = 8
         featuresButton.translatesAutoresizingMaskIntoConstraints = false
         suggestionsContainer.addSubview(featuresButton)
 
@@ -423,8 +454,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
             featuresButton.leadingAnchor.constraint(equalTo: suggestionsContainer.leadingAnchor, constant: 16),
             featuresButton.centerYAnchor.constraint(equalTo: suggestionsContainer.centerYAnchor),
-            featuresButton.widthAnchor.constraint(equalToConstant: 28),
-            featuresButton.heightAnchor.constraint(equalToConstant: 28),
+            featuresButton.widthAnchor.constraint(equalToConstant: 35),
+            featuresButton.heightAnchor.constraint(equalToConstant: 35),
 
 //            suggestionsStackView.leadingAnchor.constraint(equalTo: featuresButton.trailingAnchor, constant: 16),
 //            suggestionsStackView.trailingAnchor.constraint(equalTo: suggestionsContainer.trailingAnchor, constant: -16),
@@ -449,7 +480,10 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         featuresScrollView.addSubview(featuresStack)
         featuresScrollView.contentInset = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
 
-        let featureTitles = ["Check Grammar", "Tone Changer", "Ask AI", "Translate", "Paraphrase", "Reply", "Continue Text", "Find Synonyms"]
+        let featureTitles = [
+            "✅ Check Grammar", "🎭 Tone Changer", "🤖 Ask AI", "🌐 Translate",
+            "✍️ Paraphrase", "💬 Reply", "➡️ Continue Text", "🔎 Find Synonyms"
+        ]
         for title in featureTitles {
             featuresStack.addArrangedSubview(createFeatureButton(title: title))
         }
@@ -458,6 +492,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
         closeButton.addTarget(self, action: #selector(toggleFeatureViews), for: .touchUpInside)
         closeButton.tintColor = keyTextColor
+        closeButton.backgroundColor = specialKeyBackgroundColor
+        closeButton.layer.cornerRadius = 8
         closeButton.translatesAutoresizingMaskIntoConstraints = false
         featuresContainer.addSubview(closeButton)
 
@@ -481,8 +517,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             
             closeButton.trailingAnchor.constraint(equalTo: featuresContainer.trailingAnchor, constant: -16),
             closeButton.centerYAnchor.constraint(equalTo: featuresContainer.centerYAnchor),
-            closeButton.widthAnchor.constraint(equalToConstant: 24),
-            closeButton.heightAnchor.constraint(equalToConstant: 24)
+            closeButton.widthAnchor.constraint(equalToConstant: 35),
+            closeButton.heightAnchor.constraint(equalToConstant: 35)
         ])
     }
     
@@ -493,7 +529,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         
         button.backgroundColor = isSpecial ? specialKeyBackgroundColor : keyBackgroundColor
         button.layer.cornerRadius = 8
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .regular)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .regular)
         
         if isSpecial {
             button.setTitleColor(keyTextColor, for: .normal)
@@ -523,7 +559,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         let button = UIButton(type: .system)
         button.setTitle(title, for: .normal)
         button.setTitleColor(keyTextColor, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 16)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 18)
         button.addTarget(self, action: #selector(suggestionPressed(_:)), for: .touchUpInside)
         return button
     }
@@ -559,7 +595,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         updateFeatureButtonAppearance(button: sender, isActive: true)
         switchToFeatureView()
 
-        if title == "Check Grammar" {
+        if title == "✅ Check Grammar" {
             if checkGrammarView == nil {
                 checkGrammarView = CheckGrammarView(controller: self)
                 featureContainerView.addSubview(checkGrammarView!)
@@ -829,23 +865,26 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     func applyCorrection(newText: String) {
         // First, verify that the context hasn't changed.
         // The text that is currently marked/selected should be the same as the text we processed.
-        guard let originalText = originalTextForCorrection,
-              textDocumentProxy.selectedText == originalText
-        
-        else {
-            print(originalTextForCorrection)
-            print(textDocumentProxy.selectedText)
-            // If the context has changed, do nothing to avoid applying the correction in the wrong place.
-            textDocumentProxy.unmarkText()
-            self.originalTextForCorrection = nil
-            return
-        }
+//        guard let originalText = originalTextForCorrection,
+//              textDocumentProxy.selectedText == originalText
+//        
+//        else {
+//            print(originalTextForCorrection)
+//            print(textDocumentProxy.selectedText)
+//            // If the context has changed, do nothing to avoid applying the correction in the wrong place.
+//            textDocumentProxy.unmarkText()
+//            self.originalTextForCorrection = nil
+//            return
+//        }
         
         // Context is valid, so replace the marked text with the correction.
         textDocumentProxy.insertText(newText)
         
         // Clean up
+        textDocumentProxy.unmarkText()
         self.originalTextForCorrection = nil
+        
+        self.closeFeatureContainerView()
     }
 
     // Allow the view to request a fresh grammar check using current context
