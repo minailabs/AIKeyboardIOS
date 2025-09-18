@@ -10,6 +10,11 @@ struct GrammarCheckResponse: Codable {
     let output: String
 }
 
+struct ToneChangeRequest: Codable {
+    let text: String
+    let tone: String
+}
+
 enum APIError: Error {
     case invalidURL
     case requestFailed(Error)
@@ -36,6 +41,35 @@ final class APIService {
             return .failure(.requestFailed(error))
         }
 
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                return .failure(.invalidResponse)
+            }
+            
+            let decodedResponse = try JSONDecoder().decode(GrammarCheckResponse.self, from: data)
+            return .success(decodedResponse)
+        } catch {
+            return .failure(.decodingError(error))
+        }
+    }
+    
+    func changeTone(text: String, tone: String) async -> Result<GrammarCheckResponse, APIError> {
+        guard let url = URL(string: "https://kb-api.minailabs.io/tone-change") else {
+            return .failure(.invalidURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONEncoder().encode(ToneChangeRequest(text: text, tone: tone))
+        } catch {
+            return .failure(.requestFailed(error))
+        }
+        
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             

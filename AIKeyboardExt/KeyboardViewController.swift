@@ -23,9 +23,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var featureContainerView: UIView!
     var emojiCollectionView: UICollectionView!
     private var checkGrammarView: CheckGrammarView?
+    private var changeToneView: ChangeToneView?
     
     private var originalTextForCorrection: String?
-    private var cursorPositionForCorrection: Int?
     
     private var suggestionsContainer: UIView!
     private var featuresContainer: UIView!
@@ -78,7 +78,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         }
     }
     
-    private var keyboardBackgroundColor: UIColor {
+    var keyboardBackgroundColor: UIColor {
         return UIColor { (traits) -> UIColor in
             return traits.userInterfaceStyle == .dark ?
                 UIColor(red: 0.11, green: 0.11, blue: 0.12, alpha: 1.0) :
@@ -338,10 +338,13 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         
         checkGrammarView?.removeFromSuperview()
         checkGrammarView = nil
+        
+        changeToneView?.removeFromSuperview()
+        changeToneView = nil
+        
         originalTextForCorrection = nil
-        cursorPositionForCorrection = nil
-
         textDocumentProxy.unmarkText()
+        clearSelectionReliably()
     }
     
     private func showKeyboardView(_ viewToShow: UIView) {
@@ -596,6 +599,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         switchToFeatureView()
 
         if title == "✅ Check Grammar" {
+            changeToneView?.isHidden = true
             if checkGrammarView == nil {
                 checkGrammarView = CheckGrammarView(controller: self)
                 featureContainerView.addSubview(checkGrammarView!)
@@ -605,13 +609,30 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                     checkGrammarView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
                     checkGrammarView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
                 ])
-                Task { [weak self] in
-                    await self?.reloadGrammarCheck()
+                Task {
+                    await self.reloadGrammarCheck()
                 }
             }
             checkGrammarView?.isHidden = false
-        }else {
+        } else if title == "🎭 Tone Changer" {
             checkGrammarView?.isHidden = true
+            if changeToneView == nil {
+                changeToneView = ChangeToneView(controller: self)
+                featureContainerView.addSubview(changeToneView!)
+                NSLayoutConstraint.activate([
+                    changeToneView!.topAnchor.constraint(equalTo: featureContainerView.topAnchor),
+                    changeToneView!.leadingAnchor.constraint(equalTo: featureContainerView.leadingAnchor),
+                    changeToneView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
+                    changeToneView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
+                ])
+                Task {
+                    await self.reloadGrammarCheck()
+                }
+            }
+            changeToneView?.isHidden = false
+        } else {
+            checkGrammarView?.isHidden = true
+            changeToneView?.isHidden = true
         }
     }
 
@@ -802,6 +823,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     func markLeftPartForReplacement() async -> String? {
         let leftPart = await moveLeftUntilStart()
         let leftCount = leftPart.count
+        if leftCount == 0 {
+            return nil
+        }
         
         // Restore cursor
         textDocumentProxy.adjustTextPosition(byCharacterOffset: leftCount)
@@ -865,23 +889,20 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     func applyCorrection(newText: String) {
         // First, verify that the context hasn't changed.
         // The text that is currently marked/selected should be the same as the text we processed.
-//        guard let originalText = originalTextForCorrection,
-//              textDocumentProxy.selectedText == originalText
-//        
-//        else {
-//            print(originalTextForCorrection)
-//            print(textDocumentProxy.selectedText)
-//            // If the context has changed, do nothing to avoid applying the correction in the wrong place.
-//            textDocumentProxy.unmarkText()
-//            self.originalTextForCorrection = nil
-//            return
-//        }
+        guard let originalText = originalTextForCorrection,
+              textDocumentProxy.selectedText == originalText
+        
+        else {
+            // If the context has changed, do nothing to avoid applying the correction in the wrong place.
+            clearSelectionReliably()
+            self.originalTextForCorrection = nil
+            return
+        }
         
         // Context is valid, so replace the marked text with the correction.
         textDocumentProxy.insertText(newText)
         
         // Clean up
-        textDocumentProxy.unmarkText()
         self.originalTextForCorrection = nil
         
         self.closeFeatureContainerView()
@@ -907,8 +928,23 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
         if let text = textToProcess, !text.isEmpty {
             self.originalTextForCorrection = text // Store the text that is being processed
-            await checkGrammarView?.processText(text)
+            
+            // Find which feature is active and only process the text for that view
+            if featureButtonStates["✅ Check Grammar"] == true {
+                await checkGrammarView?.processText(text)
+            } else if featureButtonStates["🎭 Tone Changer"] == true {
+                await changeToneView?.processText(text)
+            }
+            
             // The text remains marked until it's either applied or the view is closed.
+        }
+    }
+    
+    private func clearSelectionReliably() {
+        if let selectedText = textDocumentProxy.selectedText, !selectedText.isEmpty {
+            // Replacing the selected (marked) text with itself is the most reliable way
+            // to force the text input system to clear the visual marking underline.
+            textDocumentProxy.insertText(selectedText)
         }
     }
     
