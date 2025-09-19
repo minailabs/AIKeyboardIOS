@@ -146,11 +146,15 @@ final class CheckGrammarView: UIView {
         switch result {
         case .success(let response):
             self.correctedText = response.output
-            self.resultTextView.text = response.output
+            Task {
+                await self.resultTextView.setTextAnimated(newText: response.output)
+            }
             self.applyButton.isHidden = false
             self.reloadButton.isHidden = false
         case .failure(let error):
-            self.resultTextView.text = error.localizedDescription
+            Task {
+                await self.resultTextView.setTextAnimated(newText: error.localizedDescription)
+            }
             self.applyButton.isHidden = true
             self.reloadButton.isHidden = false
         }
