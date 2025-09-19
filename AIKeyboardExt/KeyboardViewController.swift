@@ -24,6 +24,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     var emojiCollectionView: UICollectionView!
     private var checkGrammarView: CheckGrammarView?
     private var changeToneView: ChangeToneView?
+    private var askAIView: AskAIView?
     
     private var originalTextForCorrection: String?
     
@@ -342,6 +343,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         changeToneView?.removeFromSuperview()
         changeToneView = nil
         
+        askAIView?.removeFromSuperview()
+        askAIView = nil
+        
         originalTextForCorrection = nil
         textDocumentProxy.unmarkText()
         clearSelectionReliably()
@@ -600,6 +604,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
         if title == "✅ Check Grammar" {
             changeToneView?.isHidden = true
+            askAIView?.isHidden = true
             if checkGrammarView == nil {
                 checkGrammarView = CheckGrammarView(controller: self)
                 featureContainerView.addSubview(checkGrammarView!)
@@ -616,6 +621,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             checkGrammarView?.isHidden = false
         } else if title == "🎭 Tone Changer" {
             checkGrammarView?.isHidden = true
+            askAIView?.isHidden = true
             if changeToneView == nil {
                 changeToneView = ChangeToneView(controller: self)
                 featureContainerView.addSubview(changeToneView!)
@@ -630,9 +636,27 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 }
             }
             changeToneView?.isHidden = false
+        } else if title == "🤖 Ask AI" {
+            checkGrammarView?.isHidden = true
+            changeToneView?.isHidden = true
+            if askAIView == nil {
+                askAIView = AskAIView(controller: self)
+                featureContainerView.addSubview(askAIView!)
+                NSLayoutConstraint.activate([
+                    askAIView!.topAnchor.constraint(equalTo: featureContainerView.topAnchor),
+                    askAIView!.leadingAnchor.constraint(equalTo: featureContainerView.leadingAnchor),
+                    askAIView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
+                    askAIView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
+                ])
+                Task {
+                    await self.reloadGrammarCheck()
+                }
+            }
+            askAIView?.isHidden = false
         } else {
             checkGrammarView?.isHidden = true
             changeToneView?.isHidden = true
+            askAIView?.isHidden = true
         }
     }
 
@@ -934,6 +958,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 await checkGrammarView?.processText(text)
             } else if featureButtonStates["🎭 Tone Changer"] == true {
                 await changeToneView?.processText(text)
+            } else if featureButtonStates["🤖 Ask AI"] == true {
+                await askAIView?.processText(text)
             }
             
             // The text remains marked until it's either applied or the view is closed.
