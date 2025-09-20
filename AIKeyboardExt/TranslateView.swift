@@ -11,9 +11,9 @@ final class TranslateView: UIView {
     private let resultContainerView = UIView()
     private let resultTitleLabel = UILabel()
     private let resultTextView = UITextView()
-    private let applyButton = UIButton(type: .system)
     private let changeLanguageButton = UIButton(type: .system)
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
+    private let emptyStateContainer = UIStackView()
     
     // Data
     private var originalText: String?
@@ -86,15 +86,6 @@ final class TranslateView: UIView {
         resultTextView.translatesAutoresizingMaskIntoConstraints = false
         resultContainerView.addSubview(resultTextView)
         
-        applyButton.setTitle("Insert", for: .normal)
-        applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
-        applyButton.backgroundColor = .systemGreen
-        applyButton.setTitleColor(.white, for: .normal)
-        applyButton.layer.cornerRadius = 8
-        applyButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        applyButton.translatesAutoresizingMaskIntoConstraints = false
-        resultContainerView.addSubview(applyButton)
-        
         changeLanguageButton.setTitle("Change Language", for: .normal)
         changeLanguageButton.addTarget(self, action: #selector(changeLanguageTapped), for: .touchUpInside)
         changeLanguageButton.layer.cornerRadius = 8
@@ -107,9 +98,29 @@ final class TranslateView: UIView {
         loadingIndicator.translatesAutoresizingMaskIntoConstraints = false
         addSubview(loadingIndicator)
 
+        // --- Empty State View ---
+        let emptyStateLabel = UILabel()
+        emptyStateLabel.text = "Select or copy text to translate."
+        emptyStateLabel.font = UIFont.systemFont(ofSize: 14)
+        emptyStateLabel.textAlignment = .center
+        emptyStateLabel.numberOfLines = 0
+        
+        let emptyStateReloadButton = UIButton(type: .system)
+        emptyStateReloadButton.setImage(UIImage(systemName: "arrow.clockwise"), for: .normal)
+        emptyStateReloadButton.addTarget(self, action: #selector(reloadTapped), for: .touchUpInside)
+        
+        emptyStateContainer.axis = .vertical
+        emptyStateContainer.spacing = 12
+        emptyStateContainer.alignment = .center
+        emptyStateContainer.isHidden = true
+        emptyStateContainer.addArrangedSubview(emptyStateLabel)
+        emptyStateContainer.addArrangedSubview(emptyStateReloadButton)
+        emptyStateContainer.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(emptyStateContainer)
+
         // --- Layout ---
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 0),
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             
             languageSelectionScrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
@@ -134,16 +145,18 @@ final class TranslateView: UIView {
             resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 0),
             resultTextView.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 12),
             resultTextView.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -12),
-            resultTextView.bottomAnchor.constraint(equalTo: applyButton.topAnchor, constant: 0),
+            resultTextView.bottomAnchor.constraint(equalTo: changeLanguageButton.topAnchor, constant: -10),
             
-            applyButton.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -16),
-            applyButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
-            
-            changeLanguageButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
-            changeLanguageButton.trailingAnchor.constraint(equalTo: applyButton.leadingAnchor, constant: -8),
+            changeLanguageButton.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -16),
+            changeLanguageButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
             
             loadingIndicator.centerXAnchor.constraint(equalTo: centerXAnchor),
-            loadingIndicator.centerYAnchor.constraint(equalTo: centerYAnchor)
+            loadingIndicator.centerYAnchor.constraint(equalTo: centerYAnchor),
+            
+            emptyStateContainer.centerXAnchor.constraint(equalTo: centerXAnchor),
+            emptyStateContainer.centerYAnchor.constraint(equalTo: centerYAnchor),
+            emptyStateContainer.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 32),
+            emptyStateContainer.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -32)
         ])
     }
     
@@ -208,12 +221,14 @@ final class TranslateView: UIView {
         self.originalText = text
         
         guard let text = text, !text.isEmpty else {
-            titleLabel.text = "Select text or place cursor to translate."
+            titleLabel.isHidden = true
             languageSelectionScrollView.isHidden = true
+            emptyStateContainer.isHidden = false
             return
         }
         
         // Reset to language selection screen
+        emptyStateContainer.isHidden = true
         changeLanguageTapped()
     }
 
@@ -262,6 +277,14 @@ final class TranslateView: UIView {
 
     @objc private func applyTapped() {
         guard let translatedText = translatedText else { return }
+        // We can re-purpose this to insert the text directly,
+        // or decide on a new primary action. For now, let's have it insert.
         keyboardViewController?.applyCorrection(newText: translatedText)
+    }
+    
+    @objc private func reloadTapped() {
+        Task { [weak self] in
+            await self?.keyboardViewController?.reloadGrammarCheck()
+        }
     }
 }

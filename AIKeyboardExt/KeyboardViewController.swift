@@ -26,6 +26,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var changeToneView: ChangeToneView?
     private var askAIView: AskAIView?
     private var translateView: TranslateView?
+    private var paraphraseView: ParaphraseView?
     
     private var originalTextForCorrection: String?
     
@@ -350,6 +351,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         translateView?.removeFromSuperview()
         translateView = nil
         
+        paraphraseView?.removeFromSuperview()
+        paraphraseView = nil
+        
         originalTextForCorrection = nil
         textDocumentProxy.unmarkText()
         clearSelectionReliably()
@@ -492,8 +496,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         featuresScrollView.contentInset = UIEdgeInsets(top: 0, left: 10, bottom: 0, right: 10)
 
         let featureTitles = [
-            "✅ Check Grammar", "🎭 Tone Changer", "🤖 Ask AI", "🌐 Translate",
-            "✍️ Paraphrase", "💬 Reply", "➡️ Continue Text", "🔎 Find Synonyms"
+            "✅ Check Grammar", "🎭 Tone Changer","✍️ Paraphrase", "🤖 Ask AI", "🌐 Translate",
+             "💬 Reply", "➡️ Continue Text", "🔎 Find Synonyms"
         ]
         for title in featureTitles {
             featuresStack.addArrangedSubview(createFeatureButton(title: title))
@@ -610,6 +614,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             changeToneView?.isHidden = true
             askAIView?.isHidden = true
             translateView?.isHidden = true
+            paraphraseView?.isHidden = true
             if checkGrammarView == nil {
                 checkGrammarView = CheckGrammarView(controller: self)
                 featureContainerView.addSubview(checkGrammarView!)
@@ -628,6 +633,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             checkGrammarView?.isHidden = true
             askAIView?.isHidden = true
             translateView?.isHidden = true
+            paraphraseView?.isHidden = true
             if changeToneView == nil {
                 changeToneView = ChangeToneView(controller: self)
                 featureContainerView.addSubview(changeToneView!)
@@ -646,6 +652,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             checkGrammarView?.isHidden = true
             changeToneView?.isHidden = true
             translateView?.isHidden = true
+            paraphraseView?.isHidden = true
             if askAIView == nil {
                 askAIView = AskAIView(controller: self)
                 featureContainerView.addSubview(askAIView!)
@@ -679,11 +686,32 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 }
             }
             translateView?.isHidden = false
+        } else if title == "✍️ Paraphrase" {
+            checkGrammarView?.isHidden = true
+            changeToneView?.isHidden = true
+            askAIView?.isHidden = true
+            translateView?.isHidden = true
+            paraphraseView?.isHidden = true
+            if paraphraseView == nil {
+                paraphraseView = ParaphraseView(controller: self)
+                featureContainerView.addSubview(paraphraseView!)
+                NSLayoutConstraint.activate([
+                    paraphraseView!.topAnchor.constraint(equalTo: featureContainerView.topAnchor),
+                    paraphraseView!.leadingAnchor.constraint(equalTo: featureContainerView.leadingAnchor),
+                    paraphraseView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
+                    paraphraseView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
+                ])
+                Task {
+                    await self.reloadGrammarCheck()
+                }
+            }
+            paraphraseView?.isHidden = false
         } else {
             checkGrammarView?.isHidden = true
             changeToneView?.isHidden = true
             askAIView?.isHidden = true
             translateView?.isHidden = true
+            paraphraseView?.isHidden = true
         }
     }
 
@@ -938,19 +966,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     }
     
     func applyCorrection(newText: String) {
-        // First, verify that the context hasn't changed.
-        // The text that is currently marked/selected should be the same as the text we processed.
-        guard let originalText = originalTextForCorrection,
-              textDocumentProxy.selectedText == originalText
-        
-        else {
-            // If the context has changed, do nothing to avoid applying the correction in the wrong place.
-            clearSelectionReliably()
-            self.originalTextForCorrection = nil
-            return
-        }
-        
-        // Context is valid, so replace the marked text with the correction.
+        // The call to `insertText` will automatically replace the currently marked/selected text.
+        // The previous guard check was removed because `textDocumentProxy.selectedText` is not reliable
+        // enough for verification and was causing the apply functionality to fail.
         textDocumentProxy.insertText(newText)
         
         // Clean up
@@ -965,34 +983,63 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         var textToProcess: String?
         var isSelection = false
 
-        if let selectedText = getSelectedText(), !selectedText.isEmpty {
-            textToProcess = selectedText
-            isSelection = true
-            textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
-        } else {
-            // Since markLeftPartForReplacement now returns the marked text, we can use that directly
-            if let markedText = await markLeftPartForReplacement() {
-                textToProcess = markedText
-                isSelection = true // After marking, it becomes a selection
+        // Find which feature button is active
+        var activeFeature: String?
+        for (feature, isActive) in featureButtonStates {
+            if isActive {
+                activeFeature = feature
+                break
             }
         }
 
-        if let text = textToProcess, !text.isEmpty {
-            self.originalTextForCorrection = text // Store the text that is being processed
+        if activeFeature == nil {
+            return
+        }
+
+        if activeFeature == "🌐 Translate" {
+            if let selectedText = getSelectedText(), !selectedText.isEmpty {
+                textToProcess = selectedText
+                isSelection = true
+                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
+            }else {
+                if let text = UIPasteboard.general.string {
+                    textToProcess = text
+                    isSelection = false
+                }
+            }
+        } else {
+            if let selectedText = getSelectedText(), !selectedText.isEmpty {
+                textToProcess = selectedText
+                isSelection = true
+                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
+            } else {
+                // Since markLeftPartForReplacement now returns the marked text, we can use that directly
+                if let markedText = await markLeftPartForReplacement() {
+                    textToProcess = markedText
+                    isSelection = true // After marking, it becomes a selection
+                }
+            }
+        }
+
+
+//        if let text = textToProcess, !text.isEmpty {
+            self.originalTextForCorrection = textToProcess // Store the text that is being processed
             
             // Find which feature is active and only process the text for that view
             if featureButtonStates["✅ Check Grammar"] == true {
-                await checkGrammarView?.processText(text)
+                await checkGrammarView?.processText(textToProcess)
             } else if featureButtonStates["🎭 Tone Changer"] == true {
-                await changeToneView?.processText(text)
+                await changeToneView?.processText(textToProcess)
             } else if featureButtonStates["🤖 Ask AI"] == true {
-                await askAIView?.processText(text)
+                await askAIView?.processText(textToProcess)
             } else if featureButtonStates["🌐 Translate"] == true {
-                await translateView?.processText(text)
+                await translateView?.processText(textToProcess)
+            } else if featureButtonStates["✍️ Paraphrase"] == true {
+                await paraphraseView?.processText(textToProcess)
             }
             
             // The text remains marked until it's either applied or the view is closed.
-        }
+//        }
     }
     
     private func clearSelectionReliably() {
