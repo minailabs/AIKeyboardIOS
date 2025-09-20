@@ -1000,7 +1000,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             if let selectedText = getSelectedText(), !selectedText.isEmpty {
                 textToProcess = selectedText
                 isSelection = true
-                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
+//                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
             }else {
                 if let text = UIPasteboard.general.string {
                     textToProcess = text
@@ -1011,7 +1011,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             if let selectedText = getSelectedText(), !selectedText.isEmpty {
                 textToProcess = selectedText
                 isSelection = true
-                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
+//                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
             } else {
                 // Since markLeftPartForReplacement now returns the marked text, we can use that directly
                 if let markedText = await markLeftPartForReplacement() {

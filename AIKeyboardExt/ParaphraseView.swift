@@ -39,7 +39,7 @@ final class ParaphraseView: UIView {
         translatesAutoresizingMaskIntoConstraints = false
         updateColors()
 
-        resultTitleLabel.text = "Paraphrased Text"
+        resultTitleLabel.text = "Result"
         resultTitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         resultTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         resultTitleLabel.isHidden = true
@@ -74,11 +74,11 @@ final class ParaphraseView: UIView {
         addSubview(loadingIndicator)
 
         NSLayoutConstraint.activate([
-            resultTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            resultTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 0),
             resultTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             resultTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             
-            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 4),
+            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: -5),
             resultTextView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
             resultTextView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             resultTextView.bottomAnchor.constraint(equalTo: applyButton.topAnchor, constant: -10),
@@ -119,7 +119,7 @@ final class ParaphraseView: UIView {
             return
         }
         
-        if text == processedText { return }
+//        if text == processedText { return }
         processedText = text
 
         resultTextView.isHidden = true

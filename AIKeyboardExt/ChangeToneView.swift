@@ -12,6 +12,7 @@ final class ChangeToneView: UIView {
     private let resultTitleLabel = UILabel()
     private let resultTextView = UITextView()
     private let applyButton = UIButton(type: .system)
+    private let reloadButton = UIButton(type: .system)
     private let changeToneButton = UIButton(type: .system)
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
     
@@ -93,6 +94,12 @@ final class ChangeToneView: UIView {
         applyButton.translatesAutoresizingMaskIntoConstraints = false
         resultContainerView.addSubview(applyButton)
         
+        reloadButton.setImage(UIImage(systemName: "arrow.clockwise"), for: .normal)
+        reloadButton.addTarget(self, action: #selector(reloadTapped), for: .touchUpInside)
+        reloadButton.isHidden = true
+        reloadButton.translatesAutoresizingMaskIntoConstraints = false
+        resultContainerView.addSubview(reloadButton)
+        
         changeToneButton.setTitle("Change Tone", for: .normal)
         changeToneButton.addTarget(self, action: #selector(changeToneTapped), for: .touchUpInside)
         changeToneButton.layer.cornerRadius = 8
@@ -107,7 +114,7 @@ final class ChangeToneView: UIView {
 
         // --- Layout ---
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 0),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             
@@ -127,10 +134,10 @@ final class ChangeToneView: UIView {
             resultContainerView.trailingAnchor.constraint(equalTo: trailingAnchor),
             resultContainerView.bottomAnchor.constraint(equalTo: bottomAnchor),
             
-            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 10),
+            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 0),
             resultTitleLabel.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 16),
             
-            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 4),
+            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: -5),
             resultTextView.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 12),
             resultTextView.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -12),
             resultTextView.bottomAnchor.constraint(equalTo: applyButton.topAnchor, constant: -10),
@@ -139,8 +146,13 @@ final class ChangeToneView: UIView {
             applyButton.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -16),
             applyButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
             
+            reloadButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
+            reloadButton.trailingAnchor.constraint(equalTo: applyButton.leadingAnchor, constant: -8),
+            reloadButton.widthAnchor.constraint(equalToConstant: 32),
+            reloadButton.heightAnchor.constraint(equalToConstant: 32),
+            
             changeToneButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
-            changeToneButton.trailingAnchor.constraint(equalTo: applyButton.leadingAnchor, constant: -8),
+            changeToneButton.trailingAnchor.constraint(equalTo: reloadButton.leadingAnchor, constant: -8),
             
             loadingIndicator.centerXAnchor.constraint(equalTo: centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: centerYAnchor)
@@ -188,6 +200,7 @@ final class ChangeToneView: UIView {
         titleLabel.textColor = textColor
         resultTitleLabel.textColor = textColor
         resultTextView.textColor = textColor
+        reloadButton.tintColor = textColor
         changeToneButton.backgroundColor = buttonBackgroundColor
         changeToneButton.setTitleColor(textColor, for: .normal)
         loadingIndicator.color = textColor
@@ -234,10 +247,14 @@ final class ChangeToneView: UIView {
             Task {
                 await self.resultTextView.setTextAnimated(newText: response.output)
             }
+            self.applyButton.isHidden = false
+            self.reloadButton.isHidden = false
         case .failure(let error):
             Task {
                 await self.resultTextView.setTextAnimated(newText: error.localizedDescription)
             }
+            self.applyButton.isHidden = true
+            self.reloadButton.isHidden = false
         }
     }
     
@@ -247,6 +264,8 @@ final class ChangeToneView: UIView {
             titleLabel.isHidden = true
             toneSelectionScrollView.isHidden = true
             resultContainerView.isHidden = true
+            applyButton.isHidden = true
+            reloadButton.isHidden = true
         } else {
             loadingIndicator.stopAnimating()
             resultContainerView.isHidden = false
@@ -263,5 +282,11 @@ final class ChangeToneView: UIView {
     @objc private func applyTapped() {
         guard let correctedText = correctedText else { return }
         keyboardViewController?.applyCorrection(newText: correctedText)
+    }
+    
+    @objc private func reloadTapped() {
+        Task { [weak self] in
+            await self?.keyboardViewController?.reloadGrammarCheck()
+        }
     }
 }

@@ -13,17 +13,16 @@ final class CheckGrammarView: UIView {
     private var processedText: String?
 
     // MARK: - Dynamic Colors
-    private let viewBackgroundColor: UIColor = {
-        return UIColor { (traits) -> UIColor in
-            return traits.userInterfaceStyle == .dark ? UIColor(white: 0.2, alpha: 1.0) : .white
-        }
-    }()
+    private var viewBackgroundColor: UIColor {
+        return keyboardViewController?.keyboardBackgroundColor ?? .white
+    }
 
-    private let textColor: UIColor = {
-        return UIColor { (traits) -> UIColor in
-            return traits.userInterfaceStyle == .dark ? .white : .black
-        }
-    }()
+    private var textColor: UIColor {
+        return keyboardViewController?.keyTextColor ?? .black
+    }
+    private var buttonBackgroundColor: UIColor {
+        return keyboardViewController?.specialKeyBackgroundColor ?? .lightGray
+    }
 
     init(controller: KeyboardViewController) {
         self.keyboardViewController = controller
@@ -62,6 +61,8 @@ final class CheckGrammarView: UIView {
         
         applyButton.setTitle("Apply", for: .normal)
         applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
+        applyButton.backgroundColor = .systemGreen
+        applyButton.setTitleColor(.white, for: .normal)
         applyButton.isHidden = true
         applyButton.translatesAutoresizingMaskIntoConstraints = false
         applyButton.layer.cornerRadius = 8
@@ -79,7 +80,7 @@ final class CheckGrammarView: UIView {
         addSubview(loadingIndicator)
 
         NSLayoutConstraint.activate([
-            resultTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            resultTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 0),
             resultTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             resultTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             

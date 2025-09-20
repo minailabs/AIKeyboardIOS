@@ -39,7 +39,7 @@ final class AskAIView: UIView {
         translatesAutoresizingMaskIntoConstraints = false
         updateColors()
 
-        resultTitleLabel.text = "AI Response"
+        resultTitleLabel.text = "Result"
         resultTitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         resultTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         resultTitleLabel.isHidden = true
@@ -78,7 +78,7 @@ final class AskAIView: UIView {
             resultTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
             resultTitleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             
-            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 0),
+            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: -5),
             resultTextView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
             resultTextView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
             resultTextView.bottomAnchor.constraint(equalTo: applyButton.topAnchor, constant: -10),

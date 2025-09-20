@@ -11,6 +11,8 @@ final class TranslateView: UIView {
     private let resultContainerView = UIView()
     private let resultTitleLabel = UILabel()
     private let resultTextView = UITextView()
+    private let guidanceLabel = UILabel()
+    private let reloadButton = UIButton(type: .system)
     private let changeLanguageButton = UIButton(type: .system)
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
     private let emptyStateContainer = UIStackView()
@@ -86,6 +88,17 @@ final class TranslateView: UIView {
         resultTextView.translatesAutoresizingMaskIntoConstraints = false
         resultContainerView.addSubview(resultTextView)
         
+        guidanceLabel.text = "Select or copy text to translate"
+        guidanceLabel.font = UIFont.systemFont(ofSize: 12)
+        guidanceLabel.textColor = .systemGray
+        guidanceLabel.translatesAutoresizingMaskIntoConstraints = false
+        resultContainerView.addSubview(guidanceLabel)
+        
+        reloadButton.setImage(UIImage(systemName: "arrow.clockwise"), for: .normal)
+        reloadButton.addTarget(self, action: #selector(reloadTapped), for: .touchUpInside)
+        reloadButton.translatesAutoresizingMaskIntoConstraints = false
+        resultContainerView.addSubview(reloadButton)
+        
         changeLanguageButton.setTitle("Change Language", for: .normal)
         changeLanguageButton.addTarget(self, action: #selector(changeLanguageTapped), for: .touchUpInside)
         changeLanguageButton.layer.cornerRadius = 8
@@ -120,7 +133,7 @@ final class TranslateView: UIView {
 
         // --- Layout ---
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 0),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             
             languageSelectionScrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
@@ -139,13 +152,21 @@ final class TranslateView: UIView {
             resultContainerView.trailingAnchor.constraint(equalTo: trailingAnchor),
             resultContainerView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
             
-            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 0),
+            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: -5),
             resultTitleLabel.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 16),
             
             resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 0),
             resultTextView.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 12),
             resultTextView.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -12),
             resultTextView.bottomAnchor.constraint(equalTo: changeLanguageButton.topAnchor, constant: -10),
+            
+            guidanceLabel.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 16),
+            guidanceLabel.centerYAnchor.constraint(equalTo: changeLanguageButton.centerYAnchor),
+            
+            reloadButton.centerYAnchor.constraint(equalTo: changeLanguageButton.centerYAnchor),
+            reloadButton.trailingAnchor.constraint(equalTo: changeLanguageButton.leadingAnchor, constant: -8),
+            reloadButton.widthAnchor.constraint(equalToConstant: 32),
+            reloadButton.heightAnchor.constraint(equalToConstant: 32),
             
             changeLanguageButton.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -16),
             changeLanguageButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
@@ -202,6 +223,7 @@ final class TranslateView: UIView {
         titleLabel.textColor = textColor
         resultTitleLabel.textColor = textColor
         resultTextView.textColor = textColor
+        reloadButton.tintColor = textColor
         changeLanguageButton.backgroundColor = buttonBackgroundColor
         changeLanguageButton.setTitleColor(textColor, for: .normal)
         loadingIndicator.color = textColor
@@ -275,13 +297,6 @@ final class TranslateView: UIView {
         languageSelectionScrollView.isHidden = false
     }
 
-    @objc private func applyTapped() {
-        guard let translatedText = translatedText else { return }
-        // We can re-purpose this to insert the text directly,
-        // or decide on a new primary action. For now, let's have it insert.
-        keyboardViewController?.applyCorrection(newText: translatedText)
-    }
-    
     @objc private func reloadTapped() {
         Task { [weak self] in
             await self?.keyboardViewController?.reloadGrammarCheck()
