@@ -27,6 +27,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var askAIView: AskAIView?
     private var translateView: TranslateView?
     private var paraphraseView: ParaphraseView?
+    private var replyView: ReplyView?
     
     private var originalTextForCorrection: String?
     
@@ -354,6 +355,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         paraphraseView?.removeFromSuperview()
         paraphraseView = nil
         
+        replyView?.removeFromSuperview()
+        replyView = nil
+        
         originalTextForCorrection = nil
         textDocumentProxy.unmarkText()
         clearSelectionReliably()
@@ -615,6 +619,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             askAIView?.isHidden = true
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
+            replyView?.isHidden = true
             if checkGrammarView == nil {
                 checkGrammarView = CheckGrammarView(controller: self)
                 featureContainerView.addSubview(checkGrammarView!)
@@ -634,6 +639,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             askAIView?.isHidden = true
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
+            replyView?.isHidden = true
             if changeToneView == nil {
                 changeToneView = ChangeToneView(controller: self)
                 featureContainerView.addSubview(changeToneView!)
@@ -653,6 +659,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             changeToneView?.isHidden = true
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
+            replyView?.isHidden = true
             if askAIView == nil {
                 askAIView = AskAIView(controller: self)
                 featureContainerView.addSubview(askAIView!)
@@ -672,6 +679,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             changeToneView?.isHidden = true
             askAIView?.isHidden = true
             translateView?.isHidden = true
+            paraphraseView?.isHidden = true
+            replyView?.isHidden = true
             if translateView == nil {
                 translateView = TranslateView(controller: self)
                 featureContainerView.addSubview(translateView!)
@@ -692,6 +701,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             askAIView?.isHidden = true
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
+            replyView?.isHidden = true
             if paraphraseView == nil {
                 paraphraseView = ParaphraseView(controller: self)
                 featureContainerView.addSubview(paraphraseView!)
@@ -706,12 +716,34 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 }
             }
             paraphraseView?.isHidden = false
+        } else if title == "💬 Reply" {
+            checkGrammarView?.isHidden = true
+            changeToneView?.isHidden = true
+            askAIView?.isHidden = true
+            translateView?.isHidden = true
+            paraphraseView?.isHidden = true
+            replyView?.isHidden = true
+            if replyView == nil {
+                replyView = ReplyView(controller: self)
+                featureContainerView.addSubview(replyView!)
+                NSLayoutConstraint.activate([
+                    replyView!.topAnchor.constraint(equalTo: featureContainerView.topAnchor),
+                    replyView!.leadingAnchor.constraint(equalTo: featureContainerView.leadingAnchor),
+                    replyView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
+                    replyView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
+                ])
+                Task {
+                    await self.reloadGrammarCheck()
+                }
+            }
+            replyView?.isHidden = false
         } else {
             checkGrammarView?.isHidden = true
             changeToneView?.isHidden = true
             askAIView?.isHidden = true
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
+            replyView?.isHidden = true
         }
     }
 
@@ -996,7 +1028,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             return
         }
 
-        if activeFeature == "🌐 Translate" {
+        if ["🌐 Translate", "💬 Reply"].contains(activeFeature) {
             if let selectedText = getSelectedText(), !selectedText.isEmpty {
                 textToProcess = selectedText
                 isSelection = true
@@ -1036,6 +1068,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 await translateView?.processText(textToProcess)
             } else if featureButtonStates["✍️ Paraphrase"] == true {
                 await paraphraseView?.processText(textToProcess)
+            } else if featureButtonStates["💬 Reply"] == true {
+                await replyView?.processText(textToProcess)
             }
             
             // The text remains marked until it's either applied or the view is closed.

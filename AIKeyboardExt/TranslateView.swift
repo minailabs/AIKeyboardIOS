@@ -77,7 +77,7 @@ final class TranslateView: UIView {
         resultContainerView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(resultContainerView)
         
-        resultTitleLabel.text = "Translation"
+        resultTitleLabel.text = "Result"
         resultTitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         resultTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         resultContainerView.addSubview(resultTitleLabel)
@@ -152,10 +152,10 @@ final class TranslateView: UIView {
             resultContainerView.trailingAnchor.constraint(equalTo: trailingAnchor),
             resultContainerView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
             
-            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: -5),
+            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 0),
             resultTitleLabel.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 16),
             
-            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 0),
+            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: -5),
             resultTextView.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 12),
             resultTextView.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -12),
             resultTextView.bottomAnchor.constraint(equalTo: changeLanguageButton.topAnchor, constant: -10),
