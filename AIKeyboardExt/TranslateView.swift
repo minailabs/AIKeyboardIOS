@@ -1,28 +1,30 @@
 import UIKit
 
-final class ChangeToneView: UIView {
+final class TranslateView: UIView {
     
     private weak var keyboardViewController: KeyboardViewController?
     
     // UI Components
     private let titleLabel = UILabel()
-    private let toneSelectionScrollView = UIScrollView()
-    private let toneSelectionStackView = UIStackView()
+    private let languageSelectionScrollView = UIScrollView()
+    private let languageSelectionStackView = UIStackView()
     private let resultContainerView = UIView()
     private let resultTitleLabel = UILabel()
     private let resultTextView = UITextView()
     private let applyButton = UIButton(type: .system)
-    private let changeToneButton = UIButton(type: .system)
+    private let changeLanguageButton = UIButton(type: .system)
     private let loadingIndicator = UIActivityIndicatorView(style: .large)
     
     // Data
     private var originalText: String?
-    private var correctedText: String?
-    private let availableTones: [(emoji: String, name: String)] = [
-        ("😊", "Friendly"), ("🤔", "Witty"), ("🎓", "Academic"),
-        ("😏", "Flirty"), ("❤️", "Romantic"), ("😢", "Sad"),
-        ("😎", "Confident"), ("😠", "Angry"), ("😃", "Happy"),
-        ("👔", "Professional"), ("😒", "Sarcastic")
+    private var translatedText: String?
+    private let supportedLanguages: [(flag: String, name: String)] = [
+        ("🇿🇦", "Afrikaans"), ("🇸🇦", "Arabic"), ("🇧🇩", "Bengali"), ("🇨🇳", "Chinese (Simplified)"),
+        ("🇨🇳", "Chinese (Traditional)"), ("🇺🇸", "English"), ("🇫🇷", "French"), ("🇩🇪", "German"),
+        ("🇮🇳", "Hindi"), ("🇮🇹", "Italian"), ("🇯🇵", "Japanese"), ("🇰🇷", "Korean"), ("🇵🇹", "Portuguese"),
+        ("🇷🇺", "Russian"), ("🇪🇸", "Spanish"), ("🇰🇪", "Swahili"), ("🇸🇪", "Swedish"), ("🇮🇳", "Tamil"),
+        ("🇮🇳", "Telugu"), ("🇹🇭", "Thai"), ("🇹🇷", "Turkish"), ("🇺🇦", "Ukrainian"), ("🇵🇰", "Urdu"),
+        ("🇻🇳", "Vietnamese"), ("🇿🇦", "Zulu")
     ]
 
     // MARK: - Dynamic Colors
@@ -51,29 +53,29 @@ final class ChangeToneView: UIView {
         updateColors()
         
         // --- Main Title ---
-        titleLabel.text = "Select a Tone"
+        titleLabel.text = "Translate to:"
         titleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(titleLabel)
 
-        // --- Tone Selection ---
-        toneSelectionScrollView.showsHorizontalScrollIndicator = false
-        toneSelectionScrollView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(toneSelectionScrollView)
+        // --- Language Selection ---
+        languageSelectionScrollView.showsHorizontalScrollIndicator = false
+        languageSelectionScrollView.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(languageSelectionScrollView)
         
-        toneSelectionStackView.axis = .vertical
-        toneSelectionStackView.spacing = 10
-        toneSelectionStackView.translatesAutoresizingMaskIntoConstraints = false
-        toneSelectionScrollView.addSubview(toneSelectionStackView)
+        languageSelectionStackView.axis = .vertical
+        languageSelectionStackView.spacing = 10
+        languageSelectionStackView.translatesAutoresizingMaskIntoConstraints = false
+        languageSelectionScrollView.addSubview(languageSelectionStackView)
         
-        populateToneButtons()
+        populateLanguageButtons()
         
         // --- Result View ---
         resultContainerView.isHidden = true
         resultContainerView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(resultContainerView)
         
-        resultTitleLabel.text = "Result"
+        resultTitleLabel.text = "Translation"
         resultTitleLabel.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
         resultTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         resultContainerView.addSubview(resultTitleLabel)
@@ -84,7 +86,7 @@ final class ChangeToneView: UIView {
         resultTextView.translatesAutoresizingMaskIntoConstraints = false
         resultContainerView.addSubview(resultTextView)
         
-        applyButton.setTitle("Apply", for: .normal)
+        applyButton.setTitle("Insert", for: .normal)
         applyButton.addTarget(self, action: #selector(applyTapped), for: .touchUpInside)
         applyButton.backgroundColor = .systemGreen
         applyButton.setTitleColor(.white, for: .normal)
@@ -93,12 +95,12 @@ final class ChangeToneView: UIView {
         applyButton.translatesAutoresizingMaskIntoConstraints = false
         resultContainerView.addSubview(applyButton)
         
-        changeToneButton.setTitle("Change Tone", for: .normal)
-        changeToneButton.addTarget(self, action: #selector(changeToneTapped), for: .touchUpInside)
-        changeToneButton.layer.cornerRadius = 8
-        changeToneButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
-        changeToneButton.translatesAutoresizingMaskIntoConstraints = false
-        resultContainerView.addSubview(changeToneButton)
+        changeLanguageButton.setTitle("Change Language", for: .normal)
+        changeLanguageButton.addTarget(self, action: #selector(changeLanguageTapped), for: .touchUpInside)
+        changeLanguageButton.layer.cornerRadius = 8
+        changeLanguageButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+        changeLanguageButton.translatesAutoresizingMaskIntoConstraints = false
+        resultContainerView.addSubview(changeLanguageButton)
         
         // --- Loading Indicator ---
         loadingIndicator.hidesWhenStopped = true
@@ -107,68 +109,67 @@ final class ChangeToneView: UIView {
 
         // --- Layout ---
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+            titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 0),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             
-            toneSelectionScrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
-            toneSelectionScrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            toneSelectionScrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            toneSelectionScrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            languageSelectionScrollView.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 10),
+            languageSelectionScrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            languageSelectionScrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            languageSelectionScrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
             
-            toneSelectionStackView.topAnchor.constraint(equalTo: toneSelectionScrollView.topAnchor),
-            toneSelectionStackView.leadingAnchor.constraint(equalTo: toneSelectionScrollView.leadingAnchor, constant: 16),
-            toneSelectionStackView.trailingAnchor.constraint(equalTo: toneSelectionScrollView.trailingAnchor, constant: -16),
-            toneSelectionStackView.bottomAnchor.constraint(equalTo: toneSelectionScrollView.bottomAnchor, constant: -10),
-            toneSelectionStackView.widthAnchor.constraint(equalTo: toneSelectionScrollView.widthAnchor, constant: -32),
+            languageSelectionStackView.topAnchor.constraint(equalTo: languageSelectionScrollView.topAnchor),
+            languageSelectionStackView.leadingAnchor.constraint(equalTo: languageSelectionScrollView.leadingAnchor, constant: 16),
+            languageSelectionStackView.trailingAnchor.constraint(equalTo: languageSelectionScrollView.trailingAnchor, constant: -16),
+            languageSelectionStackView.bottomAnchor.constraint(equalTo: languageSelectionScrollView.bottomAnchor, constant: -10),
+            languageSelectionStackView.widthAnchor.constraint(equalTo: languageSelectionScrollView.widthAnchor, constant: -32),
             
             resultContainerView.topAnchor.constraint(equalTo: topAnchor),
             resultContainerView.leadingAnchor.constraint(equalTo: leadingAnchor),
             resultContainerView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            resultContainerView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            resultContainerView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
             
-            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 10),
+            resultTitleLabel.topAnchor.constraint(equalTo: resultContainerView.topAnchor, constant: 0),
             resultTitleLabel.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 16),
             
-            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 4),
+            resultTextView.topAnchor.constraint(equalTo: resultTitleLabel.bottomAnchor, constant: 0),
             resultTextView.leadingAnchor.constraint(equalTo: resultContainerView.leadingAnchor, constant: 12),
             resultTextView.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -12),
-            resultTextView.bottomAnchor.constraint(equalTo: applyButton.topAnchor, constant: -10),
+            resultTextView.bottomAnchor.constraint(equalTo: applyButton.topAnchor, constant: 0),
             
-            applyButton.topAnchor.constraint(equalTo: resultTextView.bottomAnchor, constant: 10),
             applyButton.trailingAnchor.constraint(equalTo: resultContainerView.trailingAnchor, constant: -16),
             applyButton.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10),
             
-            changeToneButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
-            changeToneButton.trailingAnchor.constraint(equalTo: applyButton.leadingAnchor, constant: -8),
+            changeLanguageButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
+            changeLanguageButton.trailingAnchor.constraint(equalTo: applyButton.leadingAnchor, constant: -8),
             
             loadingIndicator.centerXAnchor.constraint(equalTo: centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
     }
     
-    private func populateToneButtons() {
+    private func populateLanguageButtons() {
         // Clear any existing buttons
-        toneSelectionStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        languageSelectionStackView.arrangedSubviews.forEach { $0.removeFromSuperview() }
 
-        let itemsPerRow = 3
+        let itemsPerRow = 2
         var currentRowStackView: UIStackView?
 
-        for (index, tone) in availableTones.enumerated() {
+        for (index, lang) in supportedLanguages.enumerated() {
             if index % itemsPerRow == 0 {
                 currentRowStackView = UIStackView()
                 currentRowStackView?.axis = .horizontal
                 currentRowStackView?.spacing = 10
                 currentRowStackView?.distribution = .fillEqually
-                toneSelectionStackView.addArrangedSubview(currentRowStackView!)
+                languageSelectionStackView.addArrangedSubview(currentRowStackView!)
             }
 
             let button = UIButton(type: .system)
-            button.setTitle("\(tone.emoji) \(tone.name)", for: .normal)
-            button.accessibilityIdentifier = tone.name // Store raw name here
-            button.addTarget(self, action: #selector(toneButtonTapped), for: .touchUpInside)
+            button.setTitle("\(lang.flag) \(lang.name)", for: .normal)
+            button.accessibilityIdentifier = lang.name // Store raw name here
+            button.addTarget(self, action: #selector(languageButtonTapped), for: .touchUpInside)
             button.layer.cornerRadius = 8
-            button.titleLabel?.font = UIFont.systemFont(ofSize: 14)
+            button.titleLabel?.font = UIFont.systemFont(ofSize: 14) // Increased font size for better readability
+            button.contentHorizontalAlignment = .left // Align text to the left
             button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
             button.backgroundColor = buttonBackgroundColor
             button.setTitleColor(textColor, for: .normal)
@@ -188,14 +189,16 @@ final class ChangeToneView: UIView {
         titleLabel.textColor = textColor
         resultTitleLabel.textColor = textColor
         resultTextView.textColor = textColor
-        changeToneButton.backgroundColor = buttonBackgroundColor
-        changeToneButton.setTitleColor(textColor, for: .normal)
+        changeLanguageButton.backgroundColor = buttonBackgroundColor
+        changeLanguageButton.setTitleColor(textColor, for: .normal)
         loadingIndicator.color = textColor
         
-        toneSelectionStackView.arrangedSubviews.forEach {
-            if let button = $0 as? UIButton {
-                button.backgroundColor = buttonBackgroundColor
-                button.setTitleColor(textColor, for: .normal)
+        languageSelectionStackView.arrangedSubviews.forEach { row in
+            (row as? UIStackView)?.arrangedSubviews.forEach {
+                if let button = $0 as? UIButton {
+                    button.backgroundColor = buttonBackgroundColor
+                    button.setTitleColor(textColor, for: .normal)
+                }
             }
         }
     }
@@ -205,39 +208,37 @@ final class ChangeToneView: UIView {
         self.originalText = text
         
         guard let text = text, !text.isEmpty else {
-            titleLabel.text = "Select text or place cursor to change tone."
-            toneSelectionScrollView.isHidden = true
+            titleLabel.text = "Select text or place cursor to translate."
+            languageSelectionScrollView.isHidden = true
             return
         }
+        
+        // Reset to language selection screen
+        changeLanguageTapped()
     }
 
-    @objc private func toneButtonTapped(_ sender: UIButton) {
-        // Use the accessibilityIdentifier to get the clean tone name
-        guard let tone = sender.accessibilityIdentifier, let text = originalText else { return }
+    @objc private func languageButtonTapped(_ sender: UIButton) {
+        guard let language = sender.accessibilityIdentifier, let text = originalText else { return }
 
         Task {
-            await fetchToneChange(for: text, tone: tone)
+            await fetchTranslation(for: text, language: language)
         }
     }
     
     @MainActor
-    private func fetchToneChange(for text: String, tone: String) async {
+    private func fetchTranslation(for text: String, language: String) async {
         showLoading(true)
         
-        let result = await APIService.shared.changeTone(text: text, tone: tone)
+        let result = await APIService.shared.translate(text: text, language: language)
         
         showLoading(false)
         
         switch result {
         case .success(let response):
-            self.correctedText = response.output
-            Task {
-                await self.resultTextView.setTextAnimated(newText: response.output)
-            }
+            self.translatedText = response.output
+            Task { await self.resultTextView.setTextAnimated(newText: response.output) }
         case .failure(let error):
-            Task {
-                await self.resultTextView.setTextAnimated(newText: error.localizedDescription)
-            }
+            Task { await self.resultTextView.setTextAnimated(newText: error.localizedDescription) }
         }
     }
     
@@ -245,7 +246,7 @@ final class ChangeToneView: UIView {
         if isLoading {
             loadingIndicator.startAnimating()
             titleLabel.isHidden = true
-            toneSelectionScrollView.isHidden = true
+            languageSelectionScrollView.isHidden = true
             resultContainerView.isHidden = true
         } else {
             loadingIndicator.stopAnimating()
@@ -253,15 +254,14 @@ final class ChangeToneView: UIView {
         }
     }
 
-    @objc private func changeToneTapped() {
-        // Hide result, show tone selection
+    @objc private func changeLanguageTapped() {
         resultContainerView.isHidden = true
         titleLabel.isHidden = false
-        toneSelectionScrollView.isHidden = false
+        languageSelectionScrollView.isHidden = false
     }
 
     @objc private func applyTapped() {
-        guard let correctedText = correctedText else { return }
-        keyboardViewController?.applyCorrection(newText: correctedText)
+        guard let translatedText = translatedText else { return }
+        keyboardViewController?.applyCorrection(newText: translatedText)
     }
 }
