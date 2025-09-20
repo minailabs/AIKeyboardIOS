@@ -25,6 +25,13 @@ struct TranslateRequest: Codable {
 typealias ParaphraseRequest = GrammarCheckRequest
 typealias ReplyRequest = GrammarCheckRequest
 typealias ContinueTextRequest = GrammarCheckRequest
+typealias FindSynonymRequest = GrammarCheckRequest
+
+struct SynonymResponse: Codable {
+    let status: String
+    let input: String
+    let output: [String]
+}
 
 enum APIError: Error {
     case invalidURL
@@ -234,6 +241,35 @@ final class APIService {
             }
             
             let decodedResponse = try JSONDecoder().decode(GrammarCheckResponse.self, from: data)
+            return .success(decodedResponse)
+        } catch {
+            return .failure(.decodingError(error))
+        }
+    }
+    
+    func findSynonyms(text: String) async -> Result<SynonymResponse, APIError> {
+        guard let url = URL(string: "https://kb-api.minailabs.io/find-synonyms") else {
+            return .failure(.invalidURL)
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONEncoder().encode(FindSynonymRequest(text: text))
+        } catch {
+            return .failure(.requestFailed(error))
+        }
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                return .failure(.invalidResponse)
+            }
+            
+            let decodedResponse = try JSONDecoder().decode(SynonymResponse.self, from: data)
             return .success(decodedResponse)
         } catch {
             return .failure(.decodingError(error))

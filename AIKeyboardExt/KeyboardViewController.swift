@@ -29,7 +29,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var paraphraseView: ParaphraseView?
     private var replyView: ReplyView?
     private var continueTextView: ContinueTextView?
-    
+    private var findSynonymsView: FindSynonymsView?
+
     private var originalTextForCorrection: String?
     
     private var suggestionsContainer: UIView!
@@ -364,6 +365,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         continueTextView?.removeFromSuperview()
         continueTextView = nil
         
+        findSynonymsView?.removeFromSuperview()
+        findSynonymsView = nil
+        
         originalTextForCorrection = nil
         textDocumentProxy.unmarkText()
         markedTextForRestoration = nil
@@ -508,7 +512,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
         let featureTitles = [
             "✅ Check Grammar", "🎭 Tone Changer","✍️ Paraphrase", "🤖 Ask AI", "🌐 Translate",
-             "💬 Reply", "➡️ Continue Text", "🔎 Find Synonyms"
+             "💬 Reply", "➡️ Continue Text", "🔍 Find Synonyms"
         ]
         for title in featureTitles {
             featuresStack.addArrangedSubview(createFeatureButton(title: title))
@@ -775,6 +779,28 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 }
             }
             continueTextView?.isHidden = false
+        } else if title == "🔍 Find Synonyms" {
+            checkGrammarView?.isHidden = true
+            changeToneView?.isHidden = true
+            askAIView?.isHidden = true
+            translateView?.isHidden = true
+            paraphraseView?.isHidden = true
+            replyView?.isHidden = true
+            continueTextView?.isHidden = true
+            if findSynonymsView == nil {
+                findSynonymsView = FindSynonymsView(controller: self)
+                featureContainerView.addSubview(findSynonymsView!)
+                NSLayoutConstraint.activate([
+                    findSynonymsView!.topAnchor.constraint(equalTo: featureContainerView.topAnchor),
+                    findSynonymsView!.leadingAnchor.constraint(equalTo: featureContainerView.leadingAnchor),
+                    findSynonymsView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
+                    findSynonymsView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
+                ])
+                Task {
+                    await self.reloadGrammarCheck()
+                }
+            }
+            findSynonymsView?.isHidden = false
         } else {
             checkGrammarView?.isHidden = true
             changeToneView?.isHidden = true
@@ -783,6 +809,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
             continueTextView?.isHidden = true
+            findSynonymsView?.isHidden = true
         }
     }
 
@@ -1005,26 +1032,57 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
     @MainActor
     func markLeftPartForReplacement() async -> String? {
-        let leftPart = await moveLeftUntilStart()
-        let leftCount = leftPart.count
-        if leftCount == 0 {
-            return nil
+        let activeFeature = featureButtonStates.first(where: { $0.value })?.key
+        
+        if activeFeature == "🔍 Find Synonyms" {
+            let before = textDocumentProxy.documentContextBeforeInput ?? ""
+            let after = textDocumentProxy.documentContextAfterInput ?? ""
+
+            let separators = CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters)
+
+            let partBefore = String(before.reversed().prefix(while: { $0.unicodeScalars.allSatisfy { !separators.contains($0) } }).reversed())
+            let partAfter = String(after.prefix(while: { $0.unicodeScalars.allSatisfy { !separators.contains($0) } }))
+
+            let wordToMark = partBefore + partAfter
+            
+            guard !wordToMark.isEmpty else { return nil }
+
+            // Move cursor to the end of the identified word
+            textDocumentProxy.adjustTextPosition(byCharacterOffset: partAfter.count)
+            try? await Task.sleep(nanoseconds: 80_000_000)
+
+            // Delete the word from the document
+            for _ in 0..<wordToMark.count {
+                textDocumentProxy.deleteBackward()
+            }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+
+            // Mark the word in its place, which also selects it
+            textDocumentProxy.setMarkedText(wordToMark, selectedRange: NSRange(location: 0, length: wordToMark.count))
+
+            self.markedTextForRestoration = wordToMark
+            return wordToMark
+            
+        } else {
+            let leftPart = await moveLeftUntilStart()
+            let leftCount = leftPart.count
+            if leftCount == 0 {
+                return nil
+            }
+            
+            self.markedTextForRestoration = leftPart
+            // Restore cursor
+            textDocumentProxy.adjustTextPosition(byCharacterOffset: leftCount)
+            
+            // Delete left part
+            for _ in 0..<leftCount {
+                textDocumentProxy.deleteBackward()
+            }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            // Mark placeholder so typing replaces it
+            textDocumentProxy.setMarkedText(leftPart, selectedRange: NSRange(location: 0, length: leftCount))
+            return leftPart
         }
-        
-        
-        self.markedTextForRestoration = leftPart
-        // Restore cursor
-        textDocumentProxy.adjustTextPosition(byCharacterOffset: leftCount)
-        
-//         // Delete left part
-        for _ in 0..<leftCount {
-//            textDocumentProxy.adjustTextPosition(byCharacterOffset: -1)
-            textDocumentProxy.deleteBackward()
-        }
-        try? await Task.sleep(nanoseconds: 200_000_000)
-        // Mark placeholder so typing replaces it
-        textDocumentProxy.setMarkedText(leftPart, selectedRange: NSRange(location: 0, length: leftCount))
-        return leftPart
     }
 
     @MainActor
@@ -1149,6 +1207,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 await replyView?.processText(textToProcess)
             } else if featureButtonStates["➡️ Continue Text"] == true {
                 await continueTextView?.processText(textToProcess)
+            } else if featureButtonStates["🔍 Find Synonyms"] == true {
+                await findSynonymsView?.processText(textToProcess)
             }
             
             // The text remains marked until it's either applied or the view is closed.
