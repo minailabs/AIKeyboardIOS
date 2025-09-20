@@ -28,6 +28,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var translateView: TranslateView?
     private var paraphraseView: ParaphraseView?
     private var replyView: ReplyView?
+    private var continueTextView: ContinueTextView?
     
     private var originalTextForCorrection: String?
     
@@ -35,6 +36,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     private var featuresContainer: UIView!
     
     private var featureButtonStates: [String: Bool] = [:]
+
+    private var markedTextForRestoration: String?
     
     private let emojis: [String] = [
         "😀","😃","😄","😁","😆","😅","😂","🤣","😊","🙂","😉","😍","😘","😗","😜","🤪","😎","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠"
@@ -358,8 +361,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         replyView?.removeFromSuperview()
         replyView = nil
         
+        continueTextView?.removeFromSuperview()
+        continueTextView = nil
+        
         originalTextForCorrection = nil
         textDocumentProxy.unmarkText()
+        markedTextForRestoration = nil
         clearSelectionReliably()
     }
     
@@ -614,12 +621,16 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         updateFeatureButtonAppearance(button: sender, isActive: true)
         switchToFeatureView()
 
+        // restoreTextState()
+
+
         if title == "✅ Check Grammar" {
             changeToneView?.isHidden = true
             askAIView?.isHidden = true
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
+            continueTextView?.isHidden = true
             if checkGrammarView == nil {
                 checkGrammarView = CheckGrammarView(controller: self)
                 featureContainerView.addSubview(checkGrammarView!)
@@ -640,6 +651,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
+            continueTextView?.isHidden = true
             if changeToneView == nil {
                 changeToneView = ChangeToneView(controller: self)
                 featureContainerView.addSubview(changeToneView!)
@@ -660,6 +672,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
+            continueTextView?.isHidden = true
             if askAIView == nil {
                 askAIView = AskAIView(controller: self)
                 featureContainerView.addSubview(askAIView!)
@@ -681,6 +694,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
+            continueTextView?.isHidden = true
             if translateView == nil {
                 translateView = TranslateView(controller: self)
                 featureContainerView.addSubview(translateView!)
@@ -702,6 +716,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
+            continueTextView?.isHidden = true
             if paraphraseView == nil {
                 paraphraseView = ParaphraseView(controller: self)
                 featureContainerView.addSubview(paraphraseView!)
@@ -723,6 +738,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
+            continueTextView?.isHidden = true
             if replyView == nil {
                 replyView = ReplyView(controller: self)
                 featureContainerView.addSubview(replyView!)
@@ -737,6 +753,28 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 }
             }
             replyView?.isHidden = false
+        } else if title == "➡️ Continue Text" {
+            checkGrammarView?.isHidden = true
+            changeToneView?.isHidden = true
+            askAIView?.isHidden = true
+            translateView?.isHidden = true
+            paraphraseView?.isHidden = true
+            replyView?.isHidden = true
+            continueTextView?.isHidden = true
+            if continueTextView == nil {
+                continueTextView = ContinueTextView(controller: self)
+                featureContainerView.addSubview(continueTextView!)
+                NSLayoutConstraint.activate([
+                    continueTextView!.topAnchor.constraint(equalTo: featureContainerView.topAnchor),
+                    continueTextView!.leadingAnchor.constraint(equalTo: featureContainerView.leadingAnchor),
+                    continueTextView!.trailingAnchor.constraint(equalTo: featureContainerView.trailingAnchor),
+                    continueTextView!.bottomAnchor.constraint(equalTo: featureContainerView.bottomAnchor)
+                ])
+                Task {
+                    await self.reloadGrammarCheck()
+                }
+            }
+            continueTextView?.isHidden = false
         } else {
             checkGrammarView?.isHidden = true
             changeToneView?.isHidden = true
@@ -744,6 +782,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             translateView?.isHidden = true
             paraphraseView?.isHidden = true
             replyView?.isHidden = true
+            continueTextView?.isHidden = true
         }
     }
 
@@ -930,6 +969,40 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         return fullText
     }
 
+    func restoreTextState()  {
+        // If we have stored marked text, restore it by replacement
+        if let storedText = self.markedTextForRestoration {
+            // Step 1: Delete the currently marked/selected text
+            textDocumentProxy.deleteBackward()
+            
+            // Step 2: Insert the original stored text
+            textDocumentProxy.insertText(storedText)
+            
+            // Step 3: Position cursor at the beginning of the restored text
+            textDocumentProxy.adjustTextPosition(byCharacterOffset: storedText.count)
+            
+            // Clear the stored text
+            self.markedTextForRestoration = nil
+        } else {
+            // Fallback: just unmark and clear selection
+            textDocumentProxy.unmarkText()
+            
+            if let selectedText = textDocumentProxy.selectedText, !selectedText.isEmpty {
+                textDocumentProxy.insertText(selectedText)
+            }
+            
+            print("Text state restored: unmarked text and cleared selection")
+        }
+        self.originalTextForCorrection = nil
+    }
+
+    @MainActor
+    func continueTextInsert(text: String) async {
+        self.restoreTextState()
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        self.textDocumentProxy.insertText(text)
+    }
+
     @MainActor
     func markLeftPartForReplacement() async -> String? {
         let leftPart = await moveLeftUntilStart()
@@ -938,6 +1011,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             return nil
         }
         
+        
+        self.markedTextForRestoration = leftPart
         // Restore cursor
         textDocumentProxy.adjustTextPosition(byCharacterOffset: leftCount)
         
@@ -1032,7 +1107,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             if let selectedText = getSelectedText(), !selectedText.isEmpty {
                 textToProcess = selectedText
                 isSelection = true
-//                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
+               textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
             }else {
                 if let text = UIPasteboard.general.string {
                     textToProcess = text
@@ -1043,10 +1118,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             if let selectedText = getSelectedText(), !selectedText.isEmpty {
                 textToProcess = selectedText
                 isSelection = true
-//                textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
+               textDocumentProxy.setMarkedText(selectedText, selectedRange: NSRange(location: 0, length: selectedText.count))
             } else {
-                // Since markLeftPartForReplacement now returns the marked text, we can use that directly
-                if let markedText = await markLeftPartForReplacement() {
+                if let markedText = self.markedTextForRestoration {
+                    textToProcess = markedText
+                    isSelection = true
+                }else if let markedText = await markLeftPartForReplacement() {
                     textToProcess = markedText
                     isSelection = true // After marking, it becomes a selection
                 }
@@ -1070,6 +1147,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
                 await paraphraseView?.processText(textToProcess)
             } else if featureButtonStates["💬 Reply"] == true {
                 await replyView?.processText(textToProcess)
+            } else if featureButtonStates["➡️ Continue Text"] == true {
+                await continueTextView?.processText(textToProcess)
             }
             
             // The text remains marked until it's either applied or the view is closed.
