@@ -22,8 +22,8 @@ final class NumericKeyboardView: UIView {
         rows.forEach { row in
             let rowStackView = UIStackView()
             rowStackView.axis = .horizontal
-            rowStackView.spacing = 7
-            rowStackView.distribution = .fillProportionally
+            rowStackView.spacing = 6
+            rowStackView.distribution = .fillEqually
             numericStackView.addArrangedSubview(rowStackView)
 
             row.forEach { key in

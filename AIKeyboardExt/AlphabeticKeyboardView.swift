@@ -22,8 +22,8 @@ final class AlphabeticKeyboardView: UIView {
         keyboardRows.enumerated().forEach { (rowIndex, row) in
             let rowStackView = UIStackView()
             rowStackView.axis = .horizontal
-            rowStackView.spacing = 7
-            rowStackView.distribution = .fillProportionally
+            rowStackView.spacing = 6
+            rowStackView.distribution = .fillEqually
 
             if rowIndex == 1 {
                 let container = UIView()

@@ -7,6 +7,15 @@
 
 import UIKit
 
+class ExpandedTouchButton: UIButton {
+    private let touchAreaExpansion: CGFloat = 8.0
+    
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        let expandedBounds = bounds.insetBy(dx: -touchAreaExpansion, dy: -touchAreaExpansion)
+        return expandedBounds.contains(point)
+    }
+}
+
 class KeyboardViewController: UIInputViewController, UICollectionViewDataSource, UICollectionViewDelegate, UICollectionViewDelegateFlowLayout {
     
     private var suggestionBar: UIView!
@@ -553,13 +562,13 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     }
     
     func createKeyButton(title: String, identifier: String? = nil, isSpecial: Bool = false) -> UIButton {
-        let button = UIButton(type: .system)
+        let button = ExpandedTouchButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
         button.accessibilityIdentifier = identifier ?? title
         
         button.backgroundColor = isSpecial ? specialKeyBackgroundColor : keyBackgroundColor
         button.layer.cornerRadius = 8
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .regular)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .regular)
         
         if isSpecial {
             button.setTitleColor(keyTextColor, for: .normal)
@@ -845,18 +854,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
     }
     
     @objc func keyPressed(_ sender: UIButton) {
-        let proxy = textDocumentProxy
-    
-        // Single deleteBackward for selected text
-        if let selectedText = proxy.selectedText, !selectedText.isEmpty {
-            proxy.deleteBackward()
-        }
-        
         guard let key = sender.accessibilityIdentifier else { return }
+        let proxy = textDocumentProxy
 
         switch key {
         case "delete":
-            // This is now handled by keyTouchDown and keyTouchUp to support long press
+            // Handled by keyTouchDown/keyTouchUp for long press support
             break
         case "shift":
             toggleShift()
@@ -866,16 +869,19 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             proxy.insertText("\n")
         case "123":
             switchToNumericKeyboard()
-            break
         case "#+=":
             switchToSymbolsKeyboard()
-            break
         case "😊":
             switchToEmojiKeyboard()
-            break
         default:
+            // Handle selected text deletion inline for speed
+            if let selectedText = proxy.selectedText, !selectedText.isEmpty {
+                proxy.deleteBackward()
+            }
+            
             let textToInsert = isShiftEnabled || isCapsLockEnabled ? key.uppercased() : key.lowercased()
             proxy.insertText(textToInsert)
+            
             if isShiftEnabled && !isCapsLockEnabled {
                 toggleShift(forceOff: true)
             }
@@ -925,8 +931,9 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             isShiftEnabled.toggle()
         }
         
-        updateKeyCaps()
+        // Update appearance immediately for responsiveness
         updateShiftButtonAppearance()
+        updateKeyCaps()
     }
 
     private func updateShiftButtonAppearance() {
@@ -944,27 +951,24 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
     private func updateKeyCaps() {
         let shouldUppercase = isShiftEnabled || isCapsLockEnabled
-
         
+        // Only update if the main keyboard is visible for better performance
+        guard !mainKeyboardView.isHidden else { return }
         
         func updateButtonsRecursively(in view: UIView) {
             for subview in view.subviews {
                 if let button = subview as? UIButton, !isSpecialKey(button.accessibilityIdentifier ?? "") {
                     let title = button.accessibilityIdentifier ?? ""
                     button.setTitle(shouldUppercase ? title.uppercased() : title.lowercased(), for: .normal)
-                    button.titleLabel?.font = shouldUppercase ? UIFont.systemFont(ofSize: 17, weight: .regular) : UIFont.systemFont(ofSize: 20, weight: .regular)
+                    // Keep font size consistent for better performance
+                    button.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .regular)
                 } else {
                     updateButtonsRecursively(in: subview)
                 }
             }
         }
         
-        if let mainView = mainKeyboardView {
-            updateButtonsRecursively(in: mainView)
-        }
-        // if !mainKeyboardView.isHidden {
-        //     updateMainKeyboardCaps(shouldUppercase)
-        // }
+        updateButtonsRecursively(in: mainKeyboardView)
     }
 
     @MainActor
@@ -1266,7 +1270,7 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             return .zero
         }
         let itemsPerRow: CGFloat = 7
-        let itemsPerColumn: CGFloat = 3
+        let itemsPerColumn: CGFloat = 4
         
         let totalHorizontalSpacing = (itemsPerRow - 1) * layout.minimumInteritemSpacing
         let availableWidth = collectionView.bounds.width - totalHorizontalSpacing
