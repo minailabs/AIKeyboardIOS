@@ -1049,13 +1049,13 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
 
             // Move cursor to the end of the identified word
             textDocumentProxy.adjustTextPosition(byCharacterOffset: partAfter.count)
-            try? await Task.sleep(nanoseconds: 80_000_000)
+            try? await Task.sleep(nanoseconds: 500_000_000)
 
             // Delete the word from the document
             for _ in 0..<wordToMark.count {
                 textDocumentProxy.deleteBackward()
             }
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(nanoseconds: 500_000_000)
 
             // Mark the word in its place, which also selects it
             textDocumentProxy.setMarkedText(wordToMark, selectedRange: NSRange(location: 0, length: wordToMark.count))
@@ -1064,6 +1064,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             return wordToMark
             
         } else {
+            
+            let before = textDocumentProxy.documentContextBeforeInput ?? ""
+            if before.count == 0 {
+                return nil
+            }
+            
             let leftPart = await moveLeftUntilStart()
             let leftCount = leftPart.count
             if leftCount == 0 {
@@ -1073,12 +1079,12 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
             self.markedTextForRestoration = leftPart
             // Restore cursor
             textDocumentProxy.adjustTextPosition(byCharacterOffset: leftCount)
-            
+            try? await Task.sleep(nanoseconds: 500_000_000)
             // Delete left part
             for _ in 0..<leftCount {
                 textDocumentProxy.deleteBackward()
             }
-            try? await Task.sleep(nanoseconds: 200_000_000)
+            try? await Task.sleep(nanoseconds: 500_000_000)
             // Mark placeholder so typing replaces it
             textDocumentProxy.setMarkedText(leftPart, selectedRange: NSRange(location: 0, length: leftCount))
             return leftPart
@@ -1259,8 +1265,8 @@ class KeyboardViewController: UIInputViewController, UICollectionViewDataSource,
         guard let layout = collectionView.collectionViewLayout as? UICollectionViewFlowLayout else {
             return .zero
         }
-        let itemsPerRow: CGFloat = 8
-        let itemsPerColumn: CGFloat = 4
+        let itemsPerRow: CGFloat = 7
+        let itemsPerColumn: CGFloat = 3
         
         let totalHorizontalSpacing = (itemsPerRow - 1) * layout.minimumInteritemSpacing
         let availableWidth = collectionView.bounds.width - totalHorizontalSpacing

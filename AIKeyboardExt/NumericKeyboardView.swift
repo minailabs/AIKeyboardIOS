@@ -7,7 +7,7 @@ final class NumericKeyboardView: UIView {
 
         let numericStackView = UIStackView()
         numericStackView.axis = .vertical
-        numericStackView.spacing = 10
+        numericStackView.spacing = 9
         numericStackView.distribution = .fillEqually
         numericStackView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(numericStackView)
@@ -16,13 +16,13 @@ final class NumericKeyboardView: UIView {
             numericStackView.topAnchor.constraint(equalTo: topAnchor, constant: 10),
             numericStackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             numericStackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-            numericStackView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -8)
+            numericStackView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10)
         ])
 
         rows.forEach { row in
             let rowStackView = UIStackView()
             rowStackView.axis = .horizontal
-            rowStackView.spacing = 6
+            rowStackView.spacing = 7
             rowStackView.distribution = .fillProportionally
             numericStackView.addArrangedSubview(rowStackView)
 
@@ -34,7 +34,7 @@ final class NumericKeyboardView: UIView {
 
         let bottomRow = UIStackView()
         bottomRow.axis = .horizontal
-        bottomRow.spacing = 6
+        bottomRow.spacing = 7
         bottomRow.distribution = .fillProportionally
 
         let abcButton = controller.createKeyButton(title: "ABC", isSpecial: true)

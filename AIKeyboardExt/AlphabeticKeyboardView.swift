@@ -7,7 +7,7 @@ final class AlphabeticKeyboardView: UIView {
 
         let mainStackView = UIStackView()
         mainStackView.axis = .vertical
-        mainStackView.spacing = 10
+        mainStackView.spacing = 9
         mainStackView.distribution = .fillEqually
         mainStackView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(mainStackView)
@@ -16,13 +16,13 @@ final class AlphabeticKeyboardView: UIView {
             mainStackView.topAnchor.constraint(equalTo: topAnchor, constant: 10),
             mainStackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             mainStackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-            mainStackView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -8)
+            mainStackView.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -10)
         ])
 
         keyboardRows.enumerated().forEach { (rowIndex, row) in
             let rowStackView = UIStackView()
             rowStackView.axis = .horizontal
-            rowStackView.spacing = 6
+            rowStackView.spacing = 7
             rowStackView.distribution = .fillProportionally
 
             if rowIndex == 1 {
@@ -32,8 +32,8 @@ final class AlphabeticKeyboardView: UIView {
                 NSLayoutConstraint.activate([
                     rowStackView.topAnchor.constraint(equalTo: container.topAnchor),
                     rowStackView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-                    rowStackView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
-                    rowStackView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -20)
+                    rowStackView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 15),
+                    rowStackView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -15)
                 ])
                 mainStackView.addArrangedSubview(container)
             } else {
