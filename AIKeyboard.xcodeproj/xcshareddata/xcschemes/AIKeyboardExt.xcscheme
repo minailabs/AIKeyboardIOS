@@ -58,9 +58,9 @@
       allowLocationSimulation = "YES"
       launchAutomaticallySubstyle = "2">
       <RemoteRunnable
-         runnableDebuggingMode = "2"
-         BundleIdentifier = "com.apple.springboard"
-         RemotePath = "/Today">
+         runnableDebuggingMode = "0"
+         BundleIdentifier = "com.apple.mobilenotes"
+         RemotePath = "/var/containers/Bundle/Application/AAACB9A5-30D1-40C5-A296-BD5E8AA1B1B0/MobileNotes.app">
       </RemoteRunnable>
       <MacroExpansion>
          <BuildableReference

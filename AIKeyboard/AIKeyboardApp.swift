@@ -11,7 +11,7 @@ import SwiftUI
 struct AIKeyboardApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ChatGPTView()
         }
     }
 }
