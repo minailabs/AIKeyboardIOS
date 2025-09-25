@@ -14,11 +14,8 @@ struct MessageInputArea: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            TextField("Ask me anything...", text: $text, axis: .vertical)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(.systemGray6))
-                .cornerRadius(16)
+            TextField("Type a message...", text: $text, axis: .vertical)
+                .padding(.horizontal, 4)
                 .lineLimit(5)
                 .focused($isFocusedBinding)
             
@@ -28,12 +25,19 @@ struct MessageInputArea: View {
                     text = ""
                 }
             }) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title)
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 18))
+                    .frame(width: 32, height: 32)
+                    .background(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color(.systemGray4) : Color.accentColor)
+                    .foregroundColor(.white)
+                    .clipShape(Circle())
             }
             .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSendingMessage)
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color(.systemGray6))
+        .cornerRadius(22)
         .padding()
-        .background(Color(.systemBackground))
     }
 }

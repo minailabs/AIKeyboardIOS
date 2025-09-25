@@ -6,39 +6,57 @@
 //
 
 import SwiftUI
-import PhotosUI
 
 struct MessageView: View {
     var message: Message
 
     var body: some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top, spacing: 10) {
-                    Image(systemName: message.isUserMessage ? "person.crop.circle" : "keyboard.fill")
-                        .resizable()
-                        .frame(width: 30, height: 30)
-
-                    switch message.content {
-                    case let .text(output):
-                        Text(output.trimmingCharacters(in: .whitespacesAndNewlines))
-                            .textSelection(.enabled)
-                    case let .error(output):
-                        Text(output.trimmingCharacters(in: .whitespacesAndNewlines))
-                            .foregroundStyle(.red)
-                            .textSelection(.enabled)
-                    case .indicator:
-                        MessageIndicatorView()
-                    case .image:
-                        // Image handling removed for simplicity
-                        Text("Image content is not supported in this version.")
+        HStack {
+            if message.isUserMessage { Spacer() }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                switch message.content {
+                case let .text(output):
+                    HStack(alignment: .top, spacing: 10) {
+                        if !message.isUserMessage {
+                            Image("AppLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 30, height: 30)
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        }
+                        
+                        if message.isUserMessage {
+                            Text(LocalizedStringKey(output.trimmingCharacters(in: .whitespacesAndNewlines)))
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 10)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(16)
+                        } else {
+                            TypewriterText(fullText: output.trimmingCharacters(in: .whitespacesAndNewlines))
+                                .padding(.vertical, 5)
+                                .padding(.horizontal, 0)
+                        }
                     }
+                    .textSelection(.enabled)
+                
+                case let .error(output):
+                    Text(output)
+                        .padding()
+                        .background(Color.red.opacity(0.7))
+                        .cornerRadius(16)
+                        .foregroundColor(.white)
+                
+                case .indicator:
+                    MessageIndicatorView()
+                
+                case .image:
+                    Text("Image content not supported.")
                 }
-                .padding()
             }
-            Spacer()
+            
+            if !message.isUserMessage { Spacer() }
         }
-        .background(message.isUserMessage ? Color(.systemBackground) : Color(.secondarySystemBackground))
-        .cornerRadius(12)
+        .padding(.vertical, 4)
     }
 }

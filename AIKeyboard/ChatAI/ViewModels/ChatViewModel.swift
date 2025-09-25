@@ -13,18 +13,25 @@ final class ChatViewModel: ObservableObject {
         messages.append(Message(content: .text("Hello! How can I help you today?"), isUserMessage: false))
     }
     
+    func loadConversation(_ convo: Conversation) {
+        messages = convo.messages.map { msg in
+            Message(content: .text(msg.content), isUserMessage: (msg.role == "user"))
+        }
+    }
+    
+    func exportHistory() -> [HistoryMessage] {
+        messages.compactMap { msg -> HistoryMessage? in
+            guard case .text(let content) = msg.content else { return nil }
+            return HistoryMessage(role: msg.isUserMessage ? "user" : "model", content: content)
+        }
+    }
+    
     func sendMessage(_ messageText: String) {
         // First, construct the history from the current state. This ensures we don't include
         // the new message or the indicator in the history being sent.
-        var history = messages.compactMap { msg -> HistoryMessage? in
-            // Only include messages that have text content (i.e., from user or model).
-            guard case .text(let content) = msg.content else { return nil }
-            let role = msg.isUserMessage ? "user" : "model"
-            return HistoryMessage(role: role, content: content)
-        }
+        var history = exportHistory()
 
         // Ensure the history sent to the API starts with a user turn.
-        // This is a common requirement for chat APIs.
         if let firstMessage = history.first, firstMessage.role == "model" {
             history.removeFirst()
         }
@@ -47,14 +54,11 @@ final class ChatViewModel: ObservableObject {
                 let aiMessage = Message(content: .text(response.output), isUserMessage: false)
                 messages.append(aiMessage)
             case .failure(let error):
-                // Detailed error logging for debugging
                 print("--- API Error ---")
                 print("Error: \(error)")
                 if case let APIError.decodingError(decodingError) = error {
                     print("Decoding Error Details: \(decodingError)")
                 }
-                // ---
-                
                 let errorMessage = Message(content: .error("Sorry, something went wrong. Please try again."), isUserMessage: false)
                 messages.append(errorMessage)
             }
