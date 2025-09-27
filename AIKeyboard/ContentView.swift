@@ -63,19 +63,22 @@ struct ContentView: View {
                 .background(Color(.systemGray6))
                 .cornerRadius(12)
                 
-                NavigationLink {
-                    ChatGPTView()
-                } label: {
-                    HStack {
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
-                        Text("Open TypeAI Chat")
-                            .fontWeight(.semibold)
+                VStack(spacing: 12) {
+                    NavigationLink {
+                        ChatGPTView()
+                    } label: {
+                        HStack { Image(systemName: "bubble.left.and.bubble.right.fill"); Text("Open TypeAI Chat").fontWeight(.semibold) }
+                            .padding(.horizontal, 16).padding(.vertical, 12)
+                            .background(Color.accentColor).foregroundColor(.white).cornerRadius(10)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color.accentColor)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+
+                    NavigationLink {
+                        EmailGenerationView()
+                    } label: {
+                        HStack { Image(systemName: "envelope.fill"); Text("Email Generation").fontWeight(.semibold) }
+                            .padding(.horizontal, 16).padding(.vertical, 12)
+                            .background(Color(.systemGreen)).foregroundColor(.white).cornerRadius(10)
+                    }
                 }
                 
                 Spacer()

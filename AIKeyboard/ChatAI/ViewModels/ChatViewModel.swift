@@ -27,16 +27,10 @@ final class ChatViewModel: ObservableObject {
     }
     
     func sendMessage(_ messageText: String) {
-        // First, construct the history from the current state. This ensures we don't include
-        // the new message or the indicator in the history being sent.
         var history = exportHistory()
-
-        // Ensure the history sent to the API starts with a user turn.
         if let firstMessage = history.first, firstMessage.role == "model" {
             history.removeFirst()
         }
-
-        // Now, update the UI with the new message and indicator.
         let userMessage = Message(content: .text(messageText), isUserMessage: true)
         messages.append(userMessage)
         messages.append(Message(content: .indicator, isUserMessage: false))
@@ -44,8 +38,6 @@ final class ChatViewModel: ObservableObject {
         
         Task {
             let result = await apiService.sendChatMessage(history: history, newMessage: messageText)
-            
-            // Remove the indicator from the UI
             _ = messages.popLast()
             isSendingMessage = false
             

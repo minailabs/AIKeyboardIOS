@@ -18,6 +18,15 @@ struct APIResponse: Codable {
     let output: String
 }
 
+struct ContentGenerationRequest: Codable {
+    let user_input: String
+    let text_type: String // "email" or "text message"
+    let length: String    // short | medium | long
+    let writing_tone: String // Professional, Friendly, etc.
+    let voice: String     // e.g., First-person professional
+    let output_language: String // e.g., American English
+}
+
 enum APIError: Error {
     case invalidURL
     case requestFailed(Error)
@@ -58,6 +67,30 @@ final class APIService {
                 return .failure(.invalidResponse)
             }
             
+            let decodedResponse = try JSONDecoder().decode(APIResponse.self, from: data)
+            return .success(decodedResponse)
+        } catch {
+            return .failure(.decodingError(error))
+        }
+    }
+    
+    func generateContent(_ payload: ContentGenerationRequest) async -> Result<APIResponse, APIError> {
+        guard let url = URL(string: "\(baseURL)/content-generate") else {
+            return .failure(.invalidURL)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        do {
+            request.httpBody = try JSONEncoder().encode(payload)
+        } catch {
+            return .failure(.requestFailed(error))
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                return .failure(.invalidResponse)
+            }
             let decodedResponse = try JSONDecoder().decode(APIResponse.self, from: data)
             return .success(decodedResponse)
         } catch {
