@@ -15,12 +15,19 @@ struct HistoryMessage: Codable {
 struct APIResponse: Codable {
     let status: String
     let input: String
-    let output: String
+    let output: GeneratedContent
+}
+
+struct GeneratedContent: Codable {
+    let subject: String?
+    let body: String?
+    let response: String?
 }
 
 struct ContentGenerationRequest: Codable {
     let user_input: String
     let text_type: String // "email" or "text message"
+    let text_action: String // "new" or "reply"
     let length: String    // short | medium | long
     let writing_tone: String // Professional, Friendly, etc.
     let voice: String     // e.g., First-person professional

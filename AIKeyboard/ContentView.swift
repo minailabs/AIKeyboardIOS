@@ -84,7 +84,7 @@ struct ContentView: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("TypeAI")
+            .navigationTitle("")
         }
     }
 }

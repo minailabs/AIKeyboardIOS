@@ -43,7 +43,8 @@ final class ChatViewModel: ObservableObject {
             
             switch result {
             case .success(let response):
-                let aiMessage = Message(content: .text(response.output), isUserMessage: false)
+                let outputText = response.output.body ?? response.output.response ?? ""
+                let aiMessage = Message(content: .text(outputText), isUserMessage: false)
                 messages.append(aiMessage)
             case .failure(let error):
                 print("--- API Error ---")
