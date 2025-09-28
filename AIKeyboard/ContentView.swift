@@ -67,18 +67,50 @@ struct ContentView: View {
                     NavigationLink {
                         ChatGPTView()
                     } label: {
-                        HStack { Image(systemName: "bubble.left.and.bubble.right.fill"); Text("Open TypeAI Chat").fontWeight(.semibold) }
-                            .padding(.horizontal, 16).padding(.vertical, 12)
-                            .background(Color.accentColor).foregroundColor(.white).cornerRadius(10)
+                        HStack(alignment: .center, spacing: 16) {
+                            Text("🤖")
+                                .font(.system(size: 34))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Magic Ask AI")
+                                    .font(.headline)
+                                Text("Chat with an assistant for instant answers, clarifications, and creative suggestions.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
                     }
+                    .buttonStyle(.plain)
 
                     NavigationLink {
                         EmailGenerationView()
                     } label: {
-                        HStack { Image(systemName: "envelope.fill"); Text("Email Generation").fontWeight(.semibold) }
-                            .padding(.horizontal, 16).padding(.vertical, 12)
-                            .background(Color(.systemGreen)).foregroundColor(.white).cornerRadius(10)
+                        HStack(alignment: .center, spacing: 16) {
+                            Text("✨")
+                                .font(.system(size: 34))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Magic Write AI")
+                                    .font(.headline)
+                                Text("Draft polished emails or text-message replies with tone, length, and language controls.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
                     }
+                    .buttonStyle(.plain)
                 }
                 
                 Spacer()

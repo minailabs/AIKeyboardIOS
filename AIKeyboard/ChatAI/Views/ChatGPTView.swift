@@ -25,7 +25,7 @@ struct ChatGPTView: View {
             }
             .background(Color(.systemBackground))
             .onTapGesture { isFocused = false }
-            .navigationTitle("TypeAI")
+            .navigationTitle("🤖 Magic Ask AI")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
