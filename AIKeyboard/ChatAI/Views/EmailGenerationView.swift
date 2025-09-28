@@ -1,6 +1,14 @@
 import SwiftUI
 
 struct EmailGenerationView: View {
+    @AppStorage("email_text_type") private var storedTextType: String = "Email"
+    @AppStorage("email_length") private var storedLength: String = "Short"
+    @AppStorage("email_tone") private var storedTone: String = "Professional"
+    @AppStorage("email_voice") private var storedVoice: String = "First-person, professional"
+    @AppStorage("email_language") private var storedLanguage: String = "English"
+    @AppStorage("email_language_flag") private var storedLanguageFlag: String = "🇬🇧"
+    @AppStorage("email_mode") private var storedMode: String = ComposeMode.newMail.rawValue
+
     @State private var userInput: String = ""
     @State private var textType: String = "Email" // Email | Text Message
     @State private var length: String = "Short"   // Short | Medium | Long
@@ -21,9 +29,11 @@ struct EmailGenerationView: View {
 
     private let tones: [(String, String)] = [
         ("Professional", "🧑‍💼"), ("Business", "💼"), ("Academic", "📚"),
-        ("Friendly", "😊"), ("Confident", "💪"), ("Flirty", "😘"),
-        ("Romantic", "🥰"), ("Happy", "😄"), ("Sad", "😢"),
-        ("Sarcastic", "🤓"), ("Witty", "😅")
+        ("Friendly", "😊"), ("Confident", "💪"), ("Casual", "😎"),
+        ("Supportive", "🤝"), ("Empathetic", "🤗"), ("Apologetic", "🙏"),
+        ("Flirty", "😘"), ("Romantic", "🥰"), ("Happy", "😄"),
+        ("Excited", "🤩"), ("Playful", "😜"), ("Direct", "🎯"),
+        ("Sad", "😢"), ("Sarcastic", "🤓"), ("Witty", "😅")
     ]
     private let types: [(String, String)] = [("Email", "✉️"), ("Text Message", "💬")]
     private let lengths = ["Short", "Medium", "Long"]
@@ -56,52 +66,96 @@ struct EmailGenerationView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 16) {
-            Picker("Mode", selection: $activeTab) {
-                ForEach(ComposeMode.allCases, id: \.self) { mode in
-                    Text(mode.title).tag(mode)
+        ZStack {
+            VStack(spacing: 16) {
+                composeEditor
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.horizontal)
+            .safeAreaInset(edge: .bottom) { composeControls }
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("Mode", selection: $activeTab) {
+                        ForEach(ComposeMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 240)
                 }
             }
-            .pickerStyle(.segmented)
+            .sheet(isPresented: $showTypeSheet) {
+                TypePickerSheet(textType: $textType, types: types)
+                    .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showLengthSheet) {
+                LengthPickerSheet(length: $length, lengths: lengths)
+                    .presentationDetents([.fraction(0.3)])
+            }
+            .sheet(isPresented: $showToneSheet) {
+                TonePickerSheet(tone: $tone, tones: tones)
+                    .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showLanguageSheet) {
+                LanguagePicker(language: $language, languages: languages)
+                    .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showReplySourceSheet) {
+                ReplySourceSheet(sourceText: $replySource)
+                    .presentationDetents([.medium, .large])
+            }
+            .navigationDestination(isPresented: $showResult) {
+                if let content = generatedContent {
+                    EmailGenerationResultView(content: content, textType: textType) {
+                        showResult = false
+                    }
+                } else {
+                    Text("No content available")
+                        .navigationTitle("AI Generated")
+                        .navigationBarTitleDisplayMode(.inline)
+                }
+            }
+            .onAppear(perform: restoreDefaults)
+            .onChange(of: textType) { _ in persistDefaults() }
+            .onChange(of: length) { _ in persistDefaults() }
+            .onChange(of: tone) { _ in persistDefaults() }
+            .onChange(of: voice) { _ in persistDefaults() }
+            .onChange(of: language) { _ in persistDefaults() }
+            .onChange(of: activeTab) { _ in persistDefaults() }
 
-            composeEditor
-        }
-        .frame(maxHeight: .infinity, alignment: .top)
-        .padding(.horizontal)
-        .safeAreaInset(edge: .bottom) { composeControls }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationTitle("Email Generation")
-        .sheet(isPresented: $showTypeSheet) {
-            TypePickerSheet(textType: $textType, types: types)
-                .presentationDetents([.medium])
-        }
-        .sheet(isPresented: $showLengthSheet) {
-            LengthPickerSheet(length: $length, lengths: lengths)
-                .presentationDetents([.fraction(0.3)])
-        }
-        .sheet(isPresented: $showToneSheet) {
-            TonePickerSheet(tone: $tone, tones: tones)
-                .presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: $showLanguageSheet) {
-            LanguagePicker(language: $language, languages: languages)
-                .presentationDetents([.medium, .large])
-        }
-        .sheet(isPresented: $showReplySourceSheet) {
-            ReplySourceSheet(sourceText: $replySource)
-                .presentationDetents([.medium, .large])
-        }
-        .navigationDestination(isPresented: $showResult) {
-            if let content = generatedContent {
-                EmailGenerationResultView(content: content) {
-                    showResult = false
-                }
-            } else {
-                Text("No content available")
-                    .navigationTitle("AI Generated")
-                    .navigationBarTitleDisplayMode(.inline)
+            if isLoading {
+                Color.black.opacity(0.25)
+                    .ignoresSafeArea()
+                ProgressView("Generating...")
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color(.systemBackground)))
             }
         }
+    }
+
+    private func restoreDefaults() {
+        textType = storedTextType
+        length = storedLength
+        tone = storedTone
+        voice = storedVoice
+        activeTab = ComposeMode(rawValue: storedMode) ?? .newMail
+        if let match = languages.first(where: { $0.backendValue == storedLanguage }) {
+            language = match
+        } else {
+            language = LanguageOption(flag: storedLanguageFlag, name: storedLanguage, backendValue: storedLanguage)
+        }
+    }
+
+    private func persistDefaults() {
+        storedTextType = textType
+        storedLength = length
+        storedTone = tone
+        storedVoice = voice
+        storedLanguage = language.backendValue
+        storedLanguageFlag = language.flag
+        storedMode = activeTab.rawValue
     }
 
     private var composeEditor: some View {
@@ -112,45 +166,49 @@ struct EmailGenerationView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Label("Reply To", systemImage: "envelope.open")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                        }
-                        VStack(alignment: .leading, spacing: 6) {
-                            if replySource.isEmpty {
-                                Text("Add the original text you want to reply to")
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label("Reply To", systemImage: "envelope.open")
+                                    .font(.headline)
                                     .foregroundColor(.primary)
-                            } else {
-                                Text(replySource)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                    .lineLimit(3)
-                                    .multilineTextAlignment(.leading)
-                                    .minimumScaleFactor(0.8)
+                                if replySource.isEmpty {
+                                    Text("Add the original text you want to reply to")
+                                        .foregroundColor(.primary)
+                                } else {
+                                    Text(replySource)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(3)
+                                        .multilineTextAlignment(.leading)
+                                        .minimumScaleFactor(0.8)
+                                }
                             }
+                            
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
                         }
+                        
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Color(.gray).opacity(0.5)))
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Color(.gray).opacity(0.2)))
                 }
             }
 
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.gray).opacity(0.1))
                 TextEditor(text: $userInput)
                     .padding(10)
                     .focused($isFocused)
                 if userInput.isEmpty {
-                    Text(activeTab.placeholder)
+                    Text(activeTab.placeholder(for: textType))
                         .foregroundColor(.secondary)
                         .padding(16)
                 }
             }
             .frame(maxHeight: .infinity)
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.systemGray4)))
-        }
+            
+        }.padding(.vertical, 10)
     }
 
     private var composeControls: some View {
@@ -161,7 +219,7 @@ struct EmailGenerationView: View {
                         .onTapGesture { showTypeSheet = true }
                     OptionCard(title: "Text Length", subtitle: length)
                         .onTapGesture { showLengthSheet = true }
-                    OptionCard(title: "Tone", subtitle: tone)
+                    OptionCard(title: "Tone", subtitle: displayTone)
                         .onTapGesture { showToneSheet = true }
                     OptionCard(title: "Language", subtitle: language.displayName)
                         .onTapGesture { showLanguageSheet = true }
@@ -189,6 +247,13 @@ struct EmailGenerationView: View {
             return "\(emoji) \(textType)"
         }
         return textType
+    }
+
+    private var displayTone: String {
+        if let emoji = tones.first(where: { $0.0 == tone })?.1 {
+            return "\(emoji) \(tone)"
+        }
+        return tone
     }
 
     private func submit() {
@@ -231,31 +296,24 @@ struct EmailGenerationView: View {
             return sections.joined(separator: "\n\n")
         }
     }
-
-    private func formatResult(_ output: GeneratedContent) -> String {
-        if let subject = output.subject, !(subject.isEmpty), let body = output.body {
-            return "Subject: \(subject)\n\n\(body)"
-        } else if let body = output.body, !(body.isEmpty) {
-            return body
-        } else if let response = output.response {
-            return response
-        } else {
-            return "No content generated."
-        }
-    }
 }
 
-private enum ComposeMode: CaseIterable { case newMail, replyMail
+private enum ComposeMode: String, CaseIterable {
+    case newMail
+    case replyMail
+    
     var title: String {
         switch self {
         case .newMail: return "✉️ New"
         case .replyMail: return "📩 Reply"
         }
     }
-    var placeholder: String {
-        switch self {
-        case .newMail: return "What is your email going to be about?"
-        case .replyMail: return "What do you want to say in your reply?"
+    func placeholder(for textType: String) -> String {
+        let lower = textType.lowercased()
+        if self == .newMail {
+            return lower == "text message" ? "What should the text message say?" : "What is your email going to be about?"
+        } else {
+            return lower == "text message" ? "Paste the message you want to respond to." : "What do you want to say in your reply?"
         }
     }
     var buttonTitle: String {
@@ -361,17 +419,18 @@ private struct LengthPickerSheet: View {
 
 private struct GeneratedContentView: View {
     let content: GeneratedContent
+    var animate: Bool = false
 
     var body: some View {
         VStack(spacing: 12) {
             if let subject = content.subject, !subject.isEmpty {
-                SelectableTextContainer(title: "Subject", content: subject, maxLines: 2).frame(maxHeight: 100)
+                TypewriterSelectableTextContainer(title: "Subject", content: subject, animate: animate, maxLines: 2, maxHeight: 80)
             }
             if let body = content.body, !body.isEmpty {
-                SelectableTextContainer(title: "Body", content: body)
+                TypewriterSelectableTextContainer(title: "Body", content: body, animate: animate)
             }
             if let response = content.response, !response.isEmpty {
-                SelectableTextContainer(title: "Response", content: response)
+                TypewriterSelectableTextContainer(title: "Response", content: response, animate: animate)
             }
         }
         .padding(.top, 16)
@@ -397,6 +456,42 @@ private struct SelectableTextContainer: View {
             }
             .frame(maxHeight: maxHeight)
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.systemGray4)))
+        }
+    }
+}
+
+private struct TypewriterSelectableTextContainer: View {
+    let title: String
+    let content: String
+    var animate: Bool
+    var maxLines: Int? = nil
+    var maxHeight: CGFloat? = nil
+    @State private var finished = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.secondary)
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(.gray).opacity(0.1))
+                if animate && !finished {
+                    TypewriterText(fullText: content, lineLimit: maxLines, onFinished: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        finished = true
+                    })
+                    .padding(12)
+                } else {
+                    SelectableTextView(text: content, maxLines: maxLines, maxHeight: maxHeight)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+            .frame(maxHeight: maxHeight)
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(.systemGray4)))
+        }
+        .onAppear {
+            if !animate { finished = true }
         }
     }
 }
@@ -440,6 +535,7 @@ private struct SelectableTextView: UIViewRepresentable {
 
 struct EmailGenerationResultView: View {
     let content: GeneratedContent
+    let textType: String
     var onEdit: () -> Void
 
     private var copyText: String {
@@ -458,7 +554,7 @@ struct EmailGenerationResultView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            GeneratedContentView(content: content)
+            GeneratedContentView(content: content, animate: true)
             HStack(spacing: 12) {
                 Button(action: onEdit) {
                     Text("✏️ Edit Prompt")

@@ -9,18 +9,21 @@ struct TypewriterText: View {
     let fullText: String
     var interval: Double = 0.02
     var hapticStride: Int = 6
+    var lineLimit: Int? = nil
+    var onFinished: (() -> Void)? = nil
 
     @State private var visibleText: String = ""
     @State private var animationTask: Task<Void, Never>? = nil
 
     var body: some View {
-        Text(LocalizedStringKey(visibleText))
+        Text(visibleText)
             .task(id: fullText) {
                 // Cancel any in-progress animation to avoid duplication
                 animationTask?.cancel()
                 visibleText = ""
                 animationTask = Task { await startAnimation() }
             }
+            .lineLimit(lineLimit)
     }
 
     @MainActor
@@ -54,6 +57,12 @@ struct TypewriterText: View {
             index = nextIndex
             NotificationCenter.default.post(name: .typewriterProgress, object: nil)
             try? await Task.sleep(nanoseconds: UInt64(frameInterval * 1_000_000_000))
+        }
+
+        if !Task.isCancelled {
+            await MainActor.run {
+                onFinished?()
+            }
         }
     }
 }
